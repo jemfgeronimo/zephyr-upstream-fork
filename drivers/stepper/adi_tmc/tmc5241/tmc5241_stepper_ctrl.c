@@ -47,7 +47,6 @@ void tmc5241_stepper_ctrl_notify_event(const struct device *dev, enum stepper_ct
 	data->callback(dev, event, data->user_data);
 }
 
-
 static int read_vactual(const struct device *dev, int32_t *actual_velocity)
 {
 	__ASSERT(actual_velocity != NULL, "actual_velocity pointer must not be NULL");
@@ -69,7 +68,7 @@ static int read_vactual(const struct device *dev, int32_t *actual_velocity)
 }
 
 void tmc5241_stepper_ctrl_configure_stallguard(const struct device *dev,
-						const struct tmc_stallguard_settings *sg_settings)
+					       const struct tmc_stallguard_settings *sg_settings)
 {
 	__ASSERT_NO_MSG(sg_settings->sg_threshold_velocity <= TMC5XXX_RAMPGEN_VMAX_MAX_VALUE);
 
@@ -151,8 +150,8 @@ static void tmc5241_sg_rearm_work_handler(struct k_work *work)
 }
 
 static int tmc5241_stepper_ctrl_set_event_cb(const struct device *dev,
-					      stepper_ctrl_event_callback_t callback,
-					      void *user_data)
+					     stepper_ctrl_event_callback_t callback,
+					     void *user_data)
 {
 	struct tmc5241_stepper_ctrl_data *data = dev->data;
 
@@ -181,7 +180,7 @@ static int tmc5241_stepper_ctrl_is_moving(const struct device *dev, bool *is_mov
 }
 
 static int tmc5241_stepper_ctrl_set_reference_position(const struct device *dev,
-							 const int32_t position)
+						       const int32_t position)
 {
 	const struct tmc5241_stepper_ctrl_config *config = dev->config;
 	int err;
@@ -270,7 +269,7 @@ static int tmc5241_stepper_ctrl_move_by(const struct device *dev, const int32_t 
 }
 
 static int tmc5241_stepper_ctrl_run(const struct device *dev,
-				     const enum stepper_ctrl_direction direction)
+				    const enum stepper_ctrl_direction direction)
 {
 	LOG_DBG("Stepper motor controller %s run", dev->name);
 	const struct tmc5241_stepper_ctrl_config *config = dev->config;
@@ -288,7 +287,7 @@ static int tmc5241_stepper_ctrl_run(const struct device *dev,
 	switch (direction) {
 	case STEPPER_CTRL_DIRECTION_POSITIVE:
 		err = tmc5241_write(controller, TMC5241_RAMPMODE,
-				     TMC5XXX_RAMPMODE_POSITIVE_VELOCITY_MODE);
+				    TMC5XXX_RAMPMODE_POSITIVE_VELOCITY_MODE);
 		if (err != 0) {
 			return -EIO;
 		}
@@ -296,7 +295,7 @@ static int tmc5241_stepper_ctrl_run(const struct device *dev,
 
 	case STEPPER_CTRL_DIRECTION_NEGATIVE:
 		err = tmc5241_write(controller, TMC5241_RAMPMODE,
-				     TMC5XXX_RAMPMODE_NEGATIVE_VELOCITY_MODE);
+				    TMC5XXX_RAMPMODE_NEGATIVE_VELOCITY_MODE);
 		if (err != 0) {
 			return -EIO;
 		}
@@ -326,7 +325,7 @@ static int tmc5241_stepper_ctrl_run(const struct device *dev,
 #ifdef CONFIG_STEPPER_ADI_TMC5241_RAMP_GEN
 
 int tmc5241_stepper_ctrl_set_ramp(const struct device *dev,
-				   const struct tmc_ramp_generator_data *ramp_data)
+				  const struct tmc_ramp_generator_data *ramp_data)
 {
 	const struct tmc5241_stepper_ctrl_config *config = dev->config;
 	const struct device *controller = config->controller;
@@ -463,7 +462,7 @@ static int tmc5241_stepper_ctrl_stop(const struct device *dev)
 }
 
 static int tmc5241_stepper_ctrl_configure_ramp(const struct device *dev,
-						const struct stepper_ctrl_ramp *ramp)
+					       const struct stepper_ctrl_ramp *ramp)
 {
 	const struct tmc5241_stepper_ctrl_config *config = dev->config;
 	const struct device *controller = config->controller;
@@ -471,9 +470,9 @@ static int tmc5241_stepper_ctrl_configure_ramp(const struct device *dev,
 	uint32_t velocity_fclk =
 		tmc5xxx_calculate_velocity_from_hz_to_fclk(ramp->speed_max, clock_frequency);
 	uint32_t accel_fclk = tmc5xxx_calculate_acceleration_from_hz_to_fclk(ramp->acceleration_max,
-									      clock_frequency);
+									     clock_frequency);
 	uint32_t decel_fclk = tmc5xxx_calculate_acceleration_from_hz_to_fclk(ramp->deceleration_max,
-									      clock_frequency);
+									     clock_frequency);
 	int err;
 
 	LOG_DBG("Stepper motor controller %s set ramp", dev->name);
@@ -512,19 +511,19 @@ static DEVICE_API(stepper_ctrl, tmc5241_stepper_ctrl_api) = {
 	.stop = tmc5241_stepper_ctrl_stop,
 	.set_event_cb = tmc5241_stepper_ctrl_set_event_cb,
 	.configure_ramp = tmc5241_stepper_ctrl_configure_ramp,
-	.set_microstep_interval = NULL, /* -ENOSYS: N/A, chip uses ramp generator not fixed interval */
+	/* -ENOSYS: N/A, chip uses ramp generator not fixed interval */
+	.set_microstep_interval = NULL,
 };
 
-#define TMC5241_STEPPER_CTRL_DEFINE(inst)                                                         \
-	static const struct tmc5241_stepper_ctrl_config tmc5241_stepper_ctrl_cfg_##inst = {       \
+#define TMC5241_STEPPER_CTRL_DEFINE(inst)                                                          \
+	static const struct tmc5241_stepper_ctrl_config tmc5241_stepper_ctrl_cfg_##inst = {        \
 		IF_ENABLED(CONFIG_STEPPER_ADI_TMC5241_RAMP_GEN,                                    \
-			   (.default_ramp_config = TMC_RAMP_DT_SPEC_GET_TMC5241(inst),))          \
-		.controller = DEVICE_DT_GET(DT_INST_PARENT(inst)),                                 \
-	};                                                                                          \
+			   (.default_ramp_config = TMC_RAMP_DT_SPEC_GET_TMC5241(inst),)) .controller = DEVICE_DT_GET(DT_INST_PARENT(inst)),    \
+		};                                                                                 \
 	static struct tmc5241_stepper_ctrl_data tmc5241_stepper_ctrl_data_##inst;                  \
 	DEVICE_DT_INST_DEFINE(inst, tmc5241_stepper_ctrl_init, NULL,                               \
-			       &tmc5241_stepper_ctrl_data_##inst,                                  \
-			       &tmc5241_stepper_ctrl_cfg_##inst, POST_KERNEL,                      \
-			       CONFIG_STEPPER_INIT_PRIORITY, &tmc5241_stepper_ctrl_api);
+			      &tmc5241_stepper_ctrl_data_##inst, &tmc5241_stepper_ctrl_cfg_##inst, \
+			      POST_KERNEL, CONFIG_STEPPER_INIT_PRIORITY,                           \
+			      &tmc5241_stepper_ctrl_api);
 
 DT_INST_FOREACH_STATUS_OKAY(TMC5241_STEPPER_CTRL_DEFINE)

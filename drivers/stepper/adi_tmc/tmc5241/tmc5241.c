@@ -68,8 +68,9 @@ struct tmc5241_config {
 	 * it's still wired up as a backstop while polling continues unconditionally.
 	 */
 	struct gpio_dt_spec diag0_gpio;
-	const struct device *motion_controller; /* NULL if no ctrl child (always NULL for TMC2241) */
-	const struct device *stepper_driver;    /* NULL if no stepper-driver child */
+	/* NULL if no ctrl child (always NULL for TMC2241) */
+	const struct device *motion_controller;
+	const struct device *stepper_driver; /* NULL if no stepper-driver child */
 };
 
 struct tmc5241_data {
@@ -425,9 +426,9 @@ static void rampstat_work_handler(struct k_work *work)
 			case TMC5XXX_STOP_SG_EVENT:
 				LOG_DBG("RAMPSTAT %s:Stall detected", dev->name);
 				tmc5241_stepper_ctrl_stallguard_enable(config->motion_controller,
-									false);
+								       false);
 				tmc5241_stepper_driver_trigger_cb(dev,
-								   STEPPER_EVENT_STALL_DETECTED);
+								  STEPPER_EVENT_STALL_DETECTED);
 				break;
 			default:
 				LOG_ERR("Illegal ramp stat bit field 0x%x", ramp_stat_values);
@@ -440,13 +441,14 @@ static void rampstat_work_handler(struct k_work *work)
 
 	/* For SPI/UART with DIAG0 pin, we use interrupt-driven approach */
 	if (!tmc5241_is_interrupt_driven(dev)) {
-		k_work_reschedule(&stepper_data->rampstat_callback_dwork,
-				  K_MSEC(CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC));
+		k_work_reschedule(
+			&stepper_data->rampstat_callback_dwork,
+			K_MSEC(CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC));
 	}
 }
 
 static void tmc5241_diag0_gpio_callback(const struct device *port, struct gpio_callback *cb,
-					 gpio_port_pins_t pins)
+					gpio_port_pins_t pins)
 {
 	struct tmc5241_data *data = CONTAINER_OF(cb, struct tmc5241_data, diag0_cb);
 
@@ -509,7 +511,7 @@ static int tmc5241_init(const struct device *dev)
 		}
 
 		gpio_init_callback(&data->diag0_cb, tmc5241_diag0_gpio_callback,
-				    BIT(config->diag0_gpio.pin));
+				   BIT(config->diag0_gpio.pin));
 
 		err = gpio_add_callback(config->diag0_gpio.port, &data->diag0_cb);
 		if (err < 0) {
@@ -592,8 +594,9 @@ static int tmc5241_init(const struct device *dev)
 	 * poll for TMC5241.
 	 */
 	if (!tmc5241_is_interrupt_driven(dev)) {
-		k_work_reschedule(&data->rampstat_callback_dwork,
-				  K_MSEC(CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC));
+		k_work_reschedule(
+			&data->rampstat_callback_dwork,
+			K_MSEC(CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC));
 	}
 
 	return 0;
@@ -602,40 +605,39 @@ static int tmc5241_init(const struct device *dev)
 /* Shared GCONF assembly. `multistep_filt` only exists in the TMC2241 binding -
  * DT_PROP_OR() yields 0 for TMC5241 nodes, correct since the bit is reserved there.
  */
-#define TMC5241_GCONF_INIT(node_id)                                                              \
-	((DT_PROP(node_id, en_pwm_mode) ? TMC5241_GCONF_EN_PWM_MODE_MASK : 0) |                   \
-	 (DT_PROP(node_id, shaft) ? TMC5241_GCONF_SHAFT_MASK : 0) |                               \
+#define TMC5241_GCONF_INIT(node_id)                                                                \
+	((DT_PROP(node_id, en_pwm_mode) ? TMC5241_GCONF_EN_PWM_MODE_MASK : 0) |                    \
+	 (DT_PROP(node_id, shaft) ? TMC5241_GCONF_SHAFT_MASK : 0) |                                \
 	 (DT_PROP_OR(node_id, fast_standstill, 0) ? TMC5241_GCONF_FAST_STANDSTILL_MASK : 0) |      \
 	 (DT_PROP_OR(node_id, multistep_filt, 0) ? TMC2241_GCONF_MULTISTEP_FILT_MASK : 0))
 
 /* Initializes a struct tmc5241_config for an instance on a SPI bus. */
-#define TMC5241_CONFIG_SPI(node_id)                                                               \
-	.comm_type = TMC_COMM_SPI,                                                                \
-	.bus.spi = SPI_DT_SPEC_GET(node_id, SPI_OP_MODE_CONTROLLER | SPI_WORD_SET(8) |             \
-						    SPI_TRANSFER_MSB),                            \
+#define TMC5241_CONFIG_SPI(node_id)                                                                \
+	.comm_type = TMC_COMM_SPI,                                                                 \
+	.bus.spi = SPI_DT_SPEC_GET(node_id,                                                        \
+				   SPI_OP_MODE_CONTROLLER | SPI_WORD_SET(8) | SPI_TRANSFER_MSB),   \
 	.bus_io = &tmc5241_spi_bus_io
 
 /* Initializes a struct tmc5241_config for an instance on a UART bus. */
-#define TMC5241_CONFIG_UART(node_id)                                                              \
-	.comm_type = TMC_COMM_UART, .bus.uart = DEVICE_DT_GET(DT_BUS(node_id)),                   \
-	.bus_io = &tmc5241_uart_bus_io,                                                           \
-	.uart_addr = DT_PROP_OR(node_id, uart_device_addr, 1U),                                   \
+#define TMC5241_CONFIG_UART(node_id)                                                               \
+	.comm_type = TMC_COMM_UART, .bus.uart = DEVICE_DT_GET(DT_BUS(node_id)),                    \
+	.bus_io = &tmc5241_uart_bus_io, .uart_addr = DT_PROP_OR(node_id, uart_device_addr, 1U),    \
 	.sw_sel_gpio = GPIO_DT_SPEC_GET_OR(node_id, sw_sel_gpios, {0})
 
-#define DT_CHILD_BY_COMPATIBLE(parent_node_id, compat)                                           \
+#define DT_CHILD_BY_COMPATIBLE(parent_node_id, compat)                                             \
 	DT_FOREACH_CHILD_STATUS_OKAY_VARGS(parent_node_id, _DT_CHILD_BY_COMPAT_HELPER, compat)
 
-#define _DT_CHILD_BY_COMPAT_HELPER(node_id, compat)                                              \
+#define _DT_CHILD_BY_COMPAT_HELPER(node_id, compat)                                                \
 	COND_CODE_1(DT_NODE_HAS_COMPAT(node_id, compat), (node_id), ())
 
 /* `ramp_gen` (literal true/false from the two DT_FOREACH_STATUS_OKAY_VARGS()
  * calls below) lets one source tree serve both compatibles - TMC2241 nodes
  * simply never get a stepper-ctrl child in DT.
  */
-#define TMC5241_DEVICE_DEFINE(node_id, ramp_gen)                                                 \
-	BUILD_ASSERT((DT_PROP(node_id, clock_frequency) > 0),                                    \
-		     "clock frequency must be non-zero positive value");                         \
-	static struct tmc5241_data tmc5241_data_##node_id = {                                    \
+#define TMC5241_DEVICE_DEFINE(node_id, ramp_gen)                                                  \
+	BUILD_ASSERT((DT_PROP(node_id, clock_frequency) > 0),                                     \
+		     "clock frequency must be non-zero positive value");                          \
+	static struct tmc5241_data tmc5241_data_##node_id = {                                     \
 		.dev = DEVICE_DT_GET(node_id),                                                    \
 	};                                                                                         \
 	static const struct tmc5241_config tmc5241_config_##node_id = {                          \
@@ -654,8 +656,8 @@ static int tmc5241_init(const struct device *dev)
 			DT_CHILD_BY_COMPATIBLE(node_id, adi_tmc5241_stepper_driver)),             \
 	};                                                                                         \
 	DEVICE_DT_DEFINE(node_id, tmc5241_init, NULL, &tmc5241_data_##node_id,                    \
-			  &tmc5241_config_##node_id, POST_KERNEL, CONFIG_STEPPER_INIT_PRIORITY,   \
-			  NULL);
+			 &tmc5241_config_##node_id, POST_KERNEL, CONFIG_STEPPER_INIT_PRIORITY,    \
+			 NULL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(adi_tmc5241)
 DT_FOREACH_STATUS_OKAY_VARGS(adi_tmc5241, TMC5241_DEVICE_DEFINE, true)
