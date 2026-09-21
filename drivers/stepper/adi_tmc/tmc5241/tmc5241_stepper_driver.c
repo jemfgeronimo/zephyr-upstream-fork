@@ -50,7 +50,7 @@ void tmc5241_stepper_driver_notify_event(const struct device *dev, enum stepper_
 }
 
 static int tmc5241_stepper_driver_set_event_cb(const struct device *stepper,
-						stepper_event_cb_t callback, void *user_data)
+					       stepper_event_cb_t callback, void *user_data)
 {
 	struct tmc5241_stepper_driver_data *data = stepper->data;
 
@@ -137,7 +137,7 @@ static int tmc5241_micro_step_res_to_mres(uint16_t res, uint32_t *mres)
 }
 
 static int tmc5241_stepper_driver_set_micro_step_res(const struct device *dev,
-						      enum stepper_micro_step_resolution res)
+						     enum stepper_micro_step_resolution res)
 {
 	const struct tmc5241_stepper_driver_config *config = dev->config;
 	const struct device *controller = config->controller;
@@ -168,7 +168,7 @@ static int tmc5241_stepper_driver_set_micro_step_res(const struct device *dev,
 }
 
 static int tmc5241_stepper_driver_get_micro_step_res(const struct device *dev,
-						      enum stepper_micro_step_resolution *res)
+						     enum stepper_micro_step_resolution *res)
 {
 	const struct tmc5241_stepper_driver_config *config = dev->config;
 	const struct device *controller = config->controller;
@@ -214,7 +214,7 @@ static int tmc5241_stepper_driver_init(const struct device *dev)
 	int32_t stall_guard_threshold = (int32_t)config->sg_threshold;
 
 	err = tmc5241_write(controller, TMC5241_COOLCONF,
-			     stall_guard_threshold << TMC5XXX_COOLCONF_SG2_THRESHOLD_VALUE_SHIFT);
+			    stall_guard_threshold << TMC5XXX_COOLCONF_SG2_THRESHOLD_VALUE_SHIFT);
 	if (err != 0) {
 		return -EIO;
 	}
@@ -235,18 +235,18 @@ static DEVICE_API(stepper, tmc5241_stepper_driver_api) = {
 	.set_event_cb = tmc5241_stepper_driver_set_event_cb,
 };
 
-#define TMC5241_STEPPER_DRIVER_DEFINE(inst)                                                       \
+#define TMC5241_STEPPER_DRIVER_DEFINE(inst)                                                        \
 	static const struct tmc5241_stepper_driver_config tmc5241_stepper_driver_config_##inst = { \
-		.controller = DEVICE_DT_GET(DT_PARENT(DT_DRV_INST(inst))),                        \
-		.default_micro_step_res = DT_INST_PROP(inst, micro_step_res),                     \
+		.controller = DEVICE_DT_GET(DT_PARENT(DT_DRV_INST(inst))),                         \
+		.default_micro_step_res = DT_INST_PROP(inst, micro_step_res),                      \
 		.default_toff = DT_INST_PROP_OR(inst, toff, 5),                                    \
-		.sg_threshold = DT_INST_PROP(inst, stallguard2_threshold),                        \
+		.sg_threshold = DT_INST_PROP(inst, stallguard2_threshold),                         \
 		.en_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, en_gpios, {0}),                          \
 	};                                                                                         \
-	static struct tmc5241_stepper_driver_data tmc5241_stepper_driver_data_##inst;             \
-	DEVICE_DT_INST_DEFINE(inst, tmc5241_stepper_driver_init, NULL,                            \
-			       &tmc5241_stepper_driver_data_##inst,                               \
-			       &tmc5241_stepper_driver_config_##inst, POST_KERNEL,                \
-			       CONFIG_STEPPER_INIT_PRIORITY, &tmc5241_stepper_driver_api);
+	static struct tmc5241_stepper_driver_data tmc5241_stepper_driver_data_##inst;              \
+	DEVICE_DT_INST_DEFINE(inst, tmc5241_stepper_driver_init, NULL,                             \
+			      &tmc5241_stepper_driver_data_##inst,                                 \
+			      &tmc5241_stepper_driver_config_##inst, POST_KERNEL,                  \
+			      CONFIG_STEPPER_INIT_PRIORITY, &tmc5241_stepper_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(TMC5241_STEPPER_DRIVER_DEFINE)

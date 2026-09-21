@@ -6,7 +6,7 @@ config STEPPER_ADI_TMC5241
 	default y
 	depends on DT_HAS_ADI_TMC5241_ENABLED || DT_HAS_ADI_TMC2241_ENABLED
 	select STEPPER_ADI_TMC_SPI if $(dt_compat_on_bus,$(DT_COMPAT_ADI_TMC5241),spi) || \
-				       $(dt_compat_on_bus,$(DT_COMPAT_ADI_TMC2241),spi)
+					$(dt_compat_on_bus,$(DT_COMPAT_ADI_TMC2241),spi)
 	select STEPPER_ADI_TMC_UART if $(dt_compat_on_bus,$(DT_COMPAT_ADI_TMC5241),uart) || \
 					$(dt_compat_on_bus,$(DT_COMPAT_ADI_TMC2241),uart)
 	help
