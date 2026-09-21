@@ -1,0 +1,39 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Common properties for ADI/Trinamic TMC2241 (bus-agnostic base).
+  Driver-only variant of TMC5241 - identical GCONF/CHOPCONF/COOLCONF/DRVSTATUS
+  layout, no ramp generator block.
+
+include:
+  - name: adi,trinamic-gconf.yaml
+    property-allowlist:
+      - en-pwm-mode
+
+properties:
+  clock-frequency:
+    type: int
+    required: true
+    description: External/internal clock frequency in Hz (fCLK).
+
+  shaft:
+    type: boolean
+    description: Reverse motor direction (GCONF bit 4).
+
+  fast-standstill:
+    type: boolean
+    description: GCONF bit 1.
+
+  multistep-filt:
+    type: boolean
+    description: |
+      GCONF bit 3. TMC2241-only field (reserved on TMC5241). Filters
+      step pulses for correct StealthChop/StallGuard operation at
+      high step rates.
+
+  diag0-gpios:
+    type: phandle-array
+    description: |
+      Optional DIAG0 interrupt pin, used for stall/fault (DRVSTATUS)
+      events only - TMC2241 has no RAMPSTAT.
