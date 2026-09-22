@@ -28,17 +28,18 @@ References
 Wiring
 ******
 
-The provided ``boards/nucleo_g071rb.overlay`` is a placeholder - adapt the SPI pins,
-chip-select, and ramp-generator/stallguard values to whatever board and motor are
-actually wired up for hardware bring-up. The board's Devicetree must define
-``stepper-driver`` and ``stepper-ctrl`` aliases.
+The provided ``boards/max32655fthr_max32655_m4.overlay`` wires the TMC5241 onto the
+MAX32655FTHR's Feather SPI header (``feather_spi``/``spi1``, CS0). ``boards/nucleo_g071rb.overlay``
+is also provided as a generic reference. Both are placeholders for the stallguard2-threshold/ramp
+values - adapt those to the actual motor. The board's Devicetree must define ``stepper-driver`` and
+``stepper-ctrl`` aliases.
 
 Building and Running
 *********************
 
 .. zephyr-app-commands::
    :zephyr-app: samples/drivers/stepper/tmc5241
-   :board: nucleo_g071rb
+   :board: max32655fthr/max32655/m4
    :goals: build flash
 
 Sample Output
