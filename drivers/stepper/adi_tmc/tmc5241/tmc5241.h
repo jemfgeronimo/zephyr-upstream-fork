@@ -136,24 +136,6 @@ void tmc5241_stepper_ctrl_notify_event(const struct device *child_dev,
 	}
 
 /**
- * @brief Store StallGuard settings; applied on the next move_to()/run() call. TMC5241 only.
- *
- * @param dev Pointer to the stepper-ctrl device.
- * @param sg_settings StallGuard settings to store.
- */
-void tmc5241_stepper_ctrl_configure_stallguard(const struct device *dev,
-					       const struct tmc_stallguard_settings *sg_settings);
-
-/**
- * @brief Convert velocity (Hz) to fclk units and write VMAX. TMC5241 only.
- *
- * @param dev Pointer to the stepper-ctrl device.
- * @param velocity Velocity in Hz.
- * @retval -EIO on failure, 0 on success
- */
-int tmc5241_stepper_ctrl_set_max_velocity(const struct device *dev, uint32_t velocity);
-
-/**
  * @brief Write the static ramp generator registers from DT/runtime config. TMC5241 only.
  *
  * @param dev Pointer to the stepper-ctrl device.
