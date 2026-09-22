@@ -515,15 +515,16 @@ static DEVICE_API(stepper_ctrl, tmc5241_stepper_ctrl_api) = {
 	.set_microstep_interval = NULL,
 };
 
-#define TMC5241_STEPPER_CTRL_DEFINE(inst)                                                          \
-	static const struct tmc5241_stepper_ctrl_config tmc5241_stepper_ctrl_cfg_##inst = {        \
-		IF_ENABLED(CONFIG_STEPPER_ADI_TMC5241_RAMP_GEN,                                    \
-			   (.default_ramp_config = TMC_RAMP_DT_SPEC_GET_TMC5241(inst),)) .controller = DEVICE_DT_GET(DT_INST_PARENT(inst)),    \
-		};                                                                                 \
-	static struct tmc5241_stepper_ctrl_data tmc5241_stepper_ctrl_data_##inst;                  \
-	DEVICE_DT_INST_DEFINE(inst, tmc5241_stepper_ctrl_init, NULL,                               \
-			      &tmc5241_stepper_ctrl_data_##inst, &tmc5241_stepper_ctrl_cfg_##inst, \
-			      POST_KERNEL, CONFIG_STEPPER_INIT_PRIORITY,                           \
-			      &tmc5241_stepper_ctrl_api);
+#define TMC5241_STEPPER_CTRL_DEFINE(inst)                                                         \
+	static const struct tmc5241_stepper_ctrl_config tmc5241_stepper_ctrl_cfg_##inst = {       \
+		IF_ENABLED(CONFIG_STEPPER_ADI_TMC5241_RAMP_GEN,                                   \
+			   (.default_ramp_config = TMC_RAMP_DT_SPEC_GET_TMC5241(inst),))          \
+		.controller = DEVICE_DT_GET(DT_INST_PARENT(inst)),                                \
+	};                                                                                         \
+	static struct tmc5241_stepper_ctrl_data tmc5241_stepper_ctrl_data_##inst;                 \
+	DEVICE_DT_INST_DEFINE(inst, tmc5241_stepper_ctrl_init, NULL,                              \
+			       &tmc5241_stepper_ctrl_data_##inst,                                 \
+			       &tmc5241_stepper_ctrl_cfg_##inst, POST_KERNEL,                     \
+			       CONFIG_STEPPER_INIT_PRIORITY, &tmc5241_stepper_ctrl_api);
 
 DT_INST_FOREACH_STATUS_OKAY(TMC5241_STEPPER_CTRL_DEFINE)
