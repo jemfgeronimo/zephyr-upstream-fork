@@ -308,6 +308,7 @@ void tmc5241_stepper_driver_trigger_cb(const struct device *dev, enum stepper_ev
 
 void tmc5241_stepper_ctrl_trigger_cb(const struct device *dev, enum stepper_ctrl_event event)
 {
+#ifdef CONFIG_STEPPER_ADI_TMC5241_STEPPER_CTRL
 	const struct tmc5241_config *config = dev->config;
 
 	if (config->motion_controller == NULL) {
@@ -315,6 +316,14 @@ void tmc5241_stepper_ctrl_trigger_cb(const struct device *dev, enum stepper_ctrl
 	}
 
 	tmc5241_stepper_ctrl_notify_event(config->motion_controller, event);
+#else
+	/* No stepper-ctrl child anywhere in this build's DT (e.g. TMC2241-only
+	 * devicetree) - tmc5241_stepper_ctrl.c isn't compiled in, so its symbols
+	 * don't exist to link against. Never actually reachable in that case.
+	 */
+	ARG_UNUSED(dev);
+	ARG_UNUSED(event);
+#endif /* CONFIG_STEPPER_ADI_TMC5241_STEPPER_CTRL */
 }
 
 #ifdef CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_STALLGUARD_LOG
@@ -425,8 +434,15 @@ static void rampstat_work_handler(struct k_work *work)
 				break;
 			case TMC5XXX_STOP_SG_EVENT:
 				LOG_DBG("RAMPSTAT %s:Stall detected", dev->name);
+#ifdef CONFIG_STEPPER_ADI_TMC5241_STEPPER_CTRL
+				/* has_ramp_gen is only ever true when a stepper-ctrl child
+				 * exists somewhere in this build's DT, so this is dead
+				 * code (never reached) whenever the Kconfig is off - see
+				 * tmc5241_stepper_ctrl_trigger_cb() for the same pattern.
+				 */
 				tmc5241_stepper_ctrl_stallguard_enable(config->motion_controller,
 								       false);
+#endif /* CONFIG_STEPPER_ADI_TMC5241_STEPPER_CTRL */
 				tmc5241_stepper_driver_trigger_cb(dev,
 								  STEPPER_EVENT_STALL_DETECTED);
 				break;
