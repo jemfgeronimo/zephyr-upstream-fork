@@ -56,6 +56,24 @@ static void stepper_callback(const struct device *dev, const enum stepper_ctrl_e
 	}
 }
 
+#if HAS_STEPPER_DRIVER
+static void stepper_driver_callback(const struct device *dev, const enum stepper_event event,
+				    void *user_data)
+{
+	ARG_UNUSED(user_data);
+	switch (event) {
+	case STEPPER_EVENT_STALL_DETECTED:
+		LOG_WRN("event: stall detected");
+		break;
+	case STEPPER_EVENT_FAULT_DETECTED:
+		LOG_ERR("event: fault detected");
+		break;
+	default:
+		break;
+	}
+}
+#endif /* HAS_STEPPER_DRIVER */
+
 static void button_pressed(struct input_event *event, void *user_data)
 {
 	ARG_UNUSED(user_data);
@@ -87,6 +105,7 @@ int main(void)
 		LOG_ERR("Device %s is not ready", stepper_driver->name);
 		return -ENODEV;
 	}
+	stepper_set_event_cb(stepper_driver, stepper_driver_callback, NULL);
 #endif
 	LOG_DBG("stepper is %p, name is %s", stepper_ctrl, stepper_ctrl->name);
 
