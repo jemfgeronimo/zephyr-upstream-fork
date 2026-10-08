@@ -96,6 +96,9 @@ INPUT_CALLBACK_DEFINE(NULL, button_pressed, NULL);
 int main(void)
 {
 	LOG_INF("Starting generic stepper sample");
+#if HAS_STATIC_PINS
+	init_static_pins();
+#endif
 	if (!device_is_ready(stepper_ctrl)) {
 		LOG_ERR("Device %s is not ready", stepper_ctrl->name);
 		return -ENODEV;
