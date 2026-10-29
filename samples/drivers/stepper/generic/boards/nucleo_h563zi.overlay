@@ -76,7 +76,7 @@
 			compatible = "adi,tmc5241-stepper-driver";
 			en-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>; /* DRV_ENN active-low */
 			micro-step-res = <256>;
-			stallguard2-threshold = <9>;
+			stallguard2-threshold = <(-10)>; /* higher sensitivity tuning pass, was 0 */
 		};
 	};
 };
