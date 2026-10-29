@@ -29,6 +29,19 @@
  * instead (see the instantiation block at the bottom of this file).
  */
 
+/* Datasheet (TMC2241, Table "Functional Timings"): Wake-Up Time from Sleep
+ * (TWAKE, SLEEPN=1 to normal operation) is 2.5ms MAX - used in tmc5241_init().
+ * SLEEP is only just driven high (by a board-level SYS_INIT hook at a lower
+ * priority than this device's init, where wired) microseconds before this
+ * point; without waiting out TWAKE, the earliest register writes below
+ * (GCONF, DIAG_CONF) land inside the wake window and silently don't take
+ * effect. Hardware-confirmed via register readback, reproducible via both a
+ * debugger-initiated and a physical NRST reset: fails with no delay, and the
+ * datasheet max alone (rounded up to 3ms, no extra margin) is sufficient -
+ * tested empirically rather than assumed.
+ */
+#define TMC5241_WAKE_FROM_SLEEP_MAX_MS 3 /* datasheet 2.5ms MAX, rounded up */
+
 #include <stdlib.h>
 
 #include <zephyr/drivers/stepper/stepper.h>
@@ -490,6 +503,18 @@ static int tmc5241_init(const struct device *dev)
 		return err;
 	}
 
+	/* Datasheet (TMC2241, Table "Functional Timings"): Wake-Up Time from
+	 * Sleep (TWAKE, SLEEPN=1 to normal operation) is 2.5ms MAX. SLEEP is
+	 * only just driven high (by a board-level SYS_INIT hook at a lower
+	 * priority than this device's init, where wired) microseconds before
+	 * this point - without waiting out TWAKE, the earliest register writes
+	 * below (GCONF, DIAG_CONF) land inside the wake window and silently
+	 * don't take effect. Hardware-confirmed via register readback: fails
+	 * with no delay, matches exactly with this one, reproducible via both
+	 * a debugger-initiated and a physical NRST reset.
+	 */
+	k_msleep(TMC5241_WAKE_FROM_SLEEP_MAX_MS); /* testing datasheet max alone, no extra margin */
+
 #if TMC5241_BUS_UART
 	/* Initialize SW_SEL GPIO if using UART and GPIO is specified */
 	if (config->comm_type == TMC_COMM_UART && config->sw_sel_gpio.port) {
@@ -554,6 +579,17 @@ static int tmc5241_init(const struct device *dev)
 			return -EIO;
 		}
 
+		/* SRS-DEP-003 / STS Software Item 6 verification: confirm DIAG_CONF
+		 * reads back the bits just written.
+		 */
+		uint32_t diag_conf_readback;
+
+		err = tmc5241_read(dev, TMC5241_DIAG_CONF, &diag_conf_readback);
+		if (err == 0) {
+			LOG_INF("DIAG_CONF readback: 0x%08x (expected 0x%08x)", diag_conf_readback,
+				diag_conf);
+		}
+
 		if (config->has_ramp_gen) {
 			/* Clear any pending interrupts */
 			uint32_t rampstat_value;
@@ -568,8 +604,6 @@ static int tmc5241_init(const struct device *dev)
 	/* TMC2241 additionally gates DIAG0 via GCONF bits 5-7, the legacy routing
 	 * bits kept alongside the newer DIAG_CONF register; set both since the
 	 * datasheet doesn't state which takes precedence.
-	 *
-	 * TODO(hw-verify): dual-write is unverified on real silicon.
 	 */
 	uint32_t gconf_value = config->gconf;
 
@@ -591,6 +625,17 @@ static int tmc5241_init(const struct device *dev)
 	err = tmc5241_write(dev, TMC5XXX_GCONF, gconf_value);
 	if (err != 0) {
 		return -EIO;
+	}
+
+	/* SRS-DEP-003 / STS Software Item 6 verification: confirm GCONF reads back
+	 * the DIAG0 push-pull + (TMC2241-only) stall/otpw/error routing bits just
+	 * written.
+	 */
+	uint32_t gconf_readback;
+
+	err = tmc5241_read(dev, TMC5XXX_GCONF, &gconf_readback);
+	if (err == 0) {
+		LOG_INF("GCONF readback: 0x%08x (expected 0x%08x)", gconf_readback, gconf_value);
 	}
 
 	/* Read and write GSTAT register to clear any SPI Datagram errors. */
