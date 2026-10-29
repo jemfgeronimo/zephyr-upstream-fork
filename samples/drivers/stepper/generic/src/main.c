@@ -48,7 +48,11 @@ static void init_static_pins(void)
 {
 	gpio_pin_configure_dt(&sleep_gpio, GPIO_OUTPUT_ACTIVE);
 	gpio_pin_configure_dt(&uart_en_gpio, GPIO_OUTPUT_INACTIVE);
-	gpio_pin_configure_dt(&iref_r2_gpio, GPIO_OUTPUT_INACTIVE);
+	/* Raised to the next current step (IREF_R2 high) for a real StallGuard
+	 * test - default (both low, 48kOhm) gives ~0.245A, well under the
+	 * QSH2818-32-07-006's rated 0.67A/phase. Watch motor temperature.
+	 */
+	gpio_pin_configure_dt(&iref_r2_gpio, GPIO_OUTPUT_ACTIVE);
 	gpio_pin_configure_dt(&iref_r3_gpio, GPIO_OUTPUT_INACTIVE);
 }
 
@@ -145,6 +149,19 @@ int main(void)
 		return -ENODEV;
 	}
 	stepper_set_event_cb(stepper_driver, stepper_driver_callback, NULL);
+
+	/* STS Software Items 2/3 (SRS-DRV-003/004): microstep resolution
+	 * get/set round-trip, and rejection of a non-power-of-two value.
+	 */
+	enum stepper_micro_step_resolution ms_res;
+	int ms_err;
+
+	ms_err = stepper_set_micro_step_res(stepper_driver, STEPPER_MICRO_STEP_256);
+	stepper_get_micro_step_res(stepper_driver, &ms_res);
+	LOG_INF("Microstep resolution round-trip: set 256 (err %d), get %d", ms_err, ms_res);
+
+	ms_err = stepper_set_micro_step_res(stepper_driver, (enum stepper_micro_step_resolution)3);
+	LOG_INF("Invalid microstep resolution (3) rejected with err %d", ms_err);
 #endif
 	LOG_DBG("stepper is %p, name is %s", stepper_ctrl, stepper_ctrl->name);
 
