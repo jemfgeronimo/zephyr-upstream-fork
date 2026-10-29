@@ -20,13 +20,20 @@
  *   20 UART_EN    -> D39 -> PE12 (low = SPI mode)
  *    9 IREF_R2    -> D34 -> PE0  (low = lowest/safest current range, see IREF_R3)
  *   10 IREF_R3    -> D36 -> PB10
- *   23 CLK        -> (none, Sternbruecke's own local 16MHz oscillator)
+ *   23 CLK        -> Sternbruecke Y201 16MHz XTAL OSC. Its EN pin is pulled high
+ *                     by default (R214, 4.7k to +3.3V); Nucleo D42 only pulls it
+ *                     low to disable, so leaving D42 undriven means CLK is
+ *                     actively driven at 16MHz (not grounded for the internal
+ *                     osc) - clock-frequency below is set to 16000000 to match.
+ *   17 STEP_INT   -> D37 -> PE15
+ *   18 DIR_INT    -> D32 -> PA0
  *
- * STEP/DIR are NOT on the Sternbruecke/J201 path at all - TMC2241-EVAL's J205
- * (separate 3-pin direct header) needs its own 2 jumper wires straight to the
- * Nucleo. D2/D1 (PG14/PB6) picked below as free Arduino-header pins - easy
- * physical access, not yet schematic-traced since J205 bypasses Sternbruecke
- * entirely (arbitrary GPIO choice here carries no functional-mismatch risk).
+ * STEP/DIR use the INT path (STEP_INT/DIR_INT, J201 pins 17/18, via the
+ * Sternbruecke) rather than EXT (TMC2241-EVAL's separate J205 header) - no
+ * loose jumper wires needed. This requires J206 and J207 (on the EVAL board)
+ * to both have their shunt installed in the INT position (pins 1-2), not EXT
+ * (pins 2-3) - without those shunts J205/INT is electrically disconnected
+ * from the chip regardless of overlay wiring.
  */
 
 / {
@@ -37,8 +44,8 @@
 
 	step_dir_motion_control: motion-controller {
 		compatible = "zephyr,gpio-step-dir-stepper-ctrl";
-		step-gpios = <&gpiog 14 GPIO_ACTIVE_HIGH>; /* Arduino D2, direct wire to J205 STEP */
-		dir-gpios = <&gpiob 6 GPIO_ACTIVE_HIGH>;   /* Arduino D1, direct wire to J205 DIR */
+		step-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>; /* STEP_INT, via Sternbruecke D37 */
+		dir-gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;   /* DIR_INT, via Sternbruecke D32 */
 		stepper-driver = <&tmc2241_stepper_driver>;
 	};
 
@@ -61,7 +68,7 @@
 		reg = <0>;
 		spi-max-frequency = <DT_FREQ_M(1)>;
 
-		clock-frequency = <12500000>; /* internal osc typ. freq, Sternbruecke's own clock unused here */
+		clock-frequency = <16000000>; /* Sternbruecke Y201 XTAL OSC, actively driven (see header comment) */
 		en-pwm-mode;
 		diag0-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 
