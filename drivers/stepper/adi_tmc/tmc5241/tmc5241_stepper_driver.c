@@ -219,6 +219,19 @@ static int tmc5241_stepper_driver_init(const struct device *dev)
 		return -EIO;
 	}
 
+	/* SRS-DRV-007 / STS Software Item 18 verification: confirm COOLCONF.SGT
+	 * reads back the DT-configured threshold immediately after init.
+	 */
+	uint32_t coolconf_readback;
+
+	err = tmc5241_read(controller, TMC5241_COOLCONF, &coolconf_readback);
+	if (err != 0) {
+		return -EIO;
+	}
+	LOG_INF("COOLCONF readback: 0x%08x, SGT=%d (expected %d)", coolconf_readback,
+		(int8_t)FIELD_GET(TMC5241_COOLCONF_SGT_MASK, coolconf_readback),
+		config->sg_threshold);
+
 	err = tmc5241_stepper_driver_set_micro_step_res(dev, config->default_micro_step_res);
 	if (err != 0) {
 		return -EIO;
