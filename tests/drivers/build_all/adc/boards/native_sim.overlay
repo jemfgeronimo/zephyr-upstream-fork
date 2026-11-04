@@ -448,6 +448,16 @@
 				active-device = <1>;
 			};
 
+			test_spi_ad7866: ad7866@1c {
+				compatible = "adi,ad7866";
+				reg = <0x1c>;
+				spi-max-frequency = <0>;
+				a0-gpios = <&test_gpio 0 0>;
+				range-gpios = <&test_gpio 0 0>;
+				avdd-mv = <5000>;
+				#io-channel-cells = <1>;
+			};
+
 			test_spi_mcp356xr: mcp356xr@18 {
 				compatible = "microchip,mcp356xr";
 				reg = <0x1a>;
