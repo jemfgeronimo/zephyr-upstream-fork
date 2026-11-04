@@ -1,0 +1,16 @@
+common:
+  tags:
+    - drivers
+    - adc
+  platform_allow:
+    - native_sim
+    - native_sim/native/64
+  integration_platforms:
+    - native_sim
+tests:
+  drivers.adc.ad7866:
+    extra_configs:
+      - CONFIG_ADC_ASYNC=n
+  drivers.adc.ad7866.async:
+    extra_configs:
+      - CONFIG_ADC_ASYNC=y
