@@ -1,0 +1,75 @@
+# Copyright (c) 2026 Analog Devices, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Analog Devices AD7866 dual 12-bit, 1 MSPS, 2-channel simultaneous sampling
+  SAR ADC with a serial interface.
+
+  The device has four single-ended inputs: VA1, VA2 (ADC A) and VB1, VB2
+  (ADC B), numbered as channels 0 to 3. Two of them, one of each ADC, are
+  converted simultaneously. The A0 pin selects which pair is converted (VA1 and
+  VB1 when low) and the RANGE pin selects the input range, both are sampled on
+  the CS falling edge and apply to the next conversion.
+
+  The input range is selected with the channel gain: ADC_GAIN_1 is the
+  0 V to VREF range and ADC_GAIN_1_2 is the VREF +/- VREF range (0 V to
+  2 x VREF), which needs a supply of at least 2 x VREF. The data output of
+  ADC A (DOUTA) or ADC B (DOUTB) must be connected to the SPI MISO line, both
+  results are read from it.
+
+  The SPI bus must run in mode 2 (CPOL = 1, CPHA = 0) at 10 kHz to 20 MHz.
+
+  Example:
+
+    &spi1 {
+        cs-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
+
+        adc@0 {
+            compatible = "adi,ad7866";
+            reg = <0>;
+            spi-max-frequency = <2000000>;
+            a0-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
+            range-gpios = <&gpiod 12 GPIO_ACTIVE_HIGH>;
+            avdd-mv = <3300>;
+            #io-channel-cells = <1>;
+        };
+    };
+
+compatible: "adi,ad7866"
+
+include: [adc-controller.yaml, spi-device.yaml]
+
+properties:
+  a0-gpios:
+    type: phandle-array
+    description: |
+      GPIO connected to the A0 pin, which selects the channel pair converted
+      simultaneously. Omit it if the pin is tied low, then only the channels 0
+      and 2 (VA1 and VB1) can be used.
+
+  range-gpios:
+    type: phandle-array
+    description: |
+      GPIO connected to the RANGE pin, which selects the input range. Omit it
+      if the pin is tied low, then only the 0 V to VREF range (ADC_GAIN_1) can
+      be used.
+
+  vref-mv:
+    type: int
+    default: 2500
+    description: |
+      Voltage on the reference pins, in mV. It is 2500 for the internal
+      reference and 2000 to 3000 for an external one.
+
+  avdd-mv:
+    type: int
+    required: true
+    description: |
+      AVDD supply voltage in mV, 2700 to 5250. The VREF +/- VREF range is only
+      allowed when it is at least 2 x vref-mv.
+
+  "#io-channel-cells":
+    const: 1
+
+io-channel-cells:
+  - input
