@@ -68,8 +68,10 @@ LOG_MODULE_REGISTER(tmc5241, CONFIG_STEPPER_LOG_LEVEL);
 struct tmc5241_config {
 	union tmc_bus bus;
 	const struct tmc_bus_io *bus_io;
-	uint8_t comm_type; /* TMC_COMM_SPI or TMC_COMM_UART */
-	uint32_t gconf;    /* pre-built at compile time from DT properties */
+	uint8_t comm_type;  /* TMC_COMM_SPI or TMC_COMM_UART */
+	uint32_t gconf;     /* pre-built at compile time from DT properties */
+	uint32_t tcoolthrs; /* TMC2241 only; 0 = leave at reset value */
+	uint32_t sg4_thrs;  /* TMC2241 only; 0 = leave at reset value */
 	uint32_t clock_frequency;
 	bool has_ramp_gen; /* true: adi,tmc5241 (ramp gen present); false: adi,tmc2241 */
 #if TMC5241_BUS_UART
@@ -638,6 +640,45 @@ static int tmc5241_init(const struct device *dev)
 		LOG_INF("GCONF readback: 0x%08x (expected 0x%08x)", gconf_readback, gconf_value);
 	}
 
+	/* TMC2241 (no ramp generator, so no stepper-ctrl child to write it):
+	 * the StallGuard2 stall output only asserts while TCOOLTHRS >= TSTEP,
+	 * and TCOOLTHRS resets to 0, which keeps it disabled.
+	 */
+	if (!config->has_ramp_gen && config->tcoolthrs != 0) {
+		uint32_t tcoolthrs_readback;
+
+		err = tmc5241_write(dev, TMC5241_TCOOLTHRS, config->tcoolthrs);
+		if (err != 0) {
+			return -EIO;
+		}
+		err = tmc5241_read(dev, TMC5241_TCOOLTHRS, &tcoolthrs_readback);
+		if (err == 0) {
+			LOG_INF("TCOOLTHRS readback: 0x%05x (expected 0x%05x)", tcoolthrs_readback,
+				config->tcoolthrs);
+		}
+	}
+
+	/* TMC2241 in StealthChop uses StallGuard4: a stall is flagged while
+	 * SG4_RESULT <= SG4_THRS. Bit 9 (sg_angle_offset) is kept at its reset
+	 * value of 1 since this write replaces the whole register.
+	 */
+	if (!config->has_ramp_gen && config->sg4_thrs != 0) {
+		uint32_t sg4_thrs_readback;
+
+		err = tmc5241_write(dev, TMC5241_SG4_THRS,
+				    TMC5241_SG4_THRS_SG_ANGLE_OFFSET_MASK |
+					    FIELD_PREP(TMC5241_SG4_THRS_MASK, config->sg4_thrs));
+		if (err != 0) {
+			return -EIO;
+		}
+		err = tmc5241_read(dev, TMC5241_SG4_THRS, &sg4_thrs_readback);
+		if (err == 0) {
+			LOG_INF("SG4_THRS readback: %u (expected %u)",
+				(unsigned int)FIELD_GET(TMC5241_SG4_THRS_MASK, sg4_thrs_readback),
+				config->sg4_thrs);
+		}
+	}
+
 	/* Read and write GSTAT register to clear any SPI Datagram errors. */
 	uint32_t gstat_value;
 
@@ -705,6 +746,8 @@ static int tmc5241_init(const struct device *dev)
 		COND_CODE_1(DT_ON_BUS(node_id, spi), (TMC5241_CONFIG_SPI(node_id)),               \
 			    (TMC5241_CONFIG_UART(node_id))),                                      \
 		.gconf = TMC5241_GCONF_INIT(node_id),                                             \
+		.tcoolthrs = COND_CODE_1(ramp_gen, (0), (DT_PROP(node_id, tcoolthrs))),           \
+		.sg4_thrs = COND_CODE_1(ramp_gen, (0), (DT_PROP(node_id, sg4_threshold))),        \
 		.clock_frequency = DT_PROP(node_id, clock_frequency),                             \
 		.has_ramp_gen = ramp_gen,                                                         \
 		.diag0_gpio = GPIO_DT_SPEC_GET_OR(node_id, diag0_gpios, {0}),                     \

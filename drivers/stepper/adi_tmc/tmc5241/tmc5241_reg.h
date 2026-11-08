@@ -85,6 +85,10 @@ extern "C" {
 #define TMC5241_SG4_RESULT 0x75
 #define TMC5241_SG4_IND    0x76
 
+/* ---- SG4_THRS bit masks ---- */
+#define TMC5241_SG4_THRS_MASK                 GENMASK(7, 0)
+#define TMC5241_SG4_THRS_SG_ANGLE_OFFSET_MASK BIT(9) /* reset value 1 */
+
 /* ---- GCONF bit masks ---- */
 #define TMC5241_GCONF_LENGTH_STEP_PULSE_MASK  GENMASK(20, 17) /* TMC5241 only */
 #define TMC5241_GCONF_DIAG1_PUSHPULL_MASK     BIT(13)
