@@ -61,7 +61,8 @@
 
 		tmc2241_stepper_driver: stepper-driver {
 			compatible = "adi,tmc5241-stepper-driver";
-			en-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>; /* feather pin 17, DRV_ENN active-low */
+			/* feather pin 17, DRV_ENN active-low */
+			en-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
 			micro-step-res = <256>;
 			stallguard2-threshold = <9>;
 		};

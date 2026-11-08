@@ -53,9 +53,11 @@
 	 * by main.c via the zephyr,user node (see HAS_STATIC_PINS in main.c).
 	 */
 	zephyr,user {
-		sleep-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;    /* must stay high - low/floating = chip sleep */
+		/* must stay high - low/floating = chip sleep */
+		sleep-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
 		uart-en-gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>; /* low = SPI mode */
-		iref-r2-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;   /* both low = 48kOhm = lowest current range */
+		/* both low = 48kOhm = lowest current range */
+		iref-r2-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
 		iref-r3-gpios = <&gpiob 10 GPIO_ACTIVE_HIGH>;
 	};
 };
@@ -68,7 +70,8 @@
 		reg = <0>;
 		spi-max-frequency = <DT_FREQ_M(1)>;
 
-		clock-frequency = <16000000>; /* Sternbruecke Y201 XTAL OSC, actively driven (see header comment) */
+		/* Sternbruecke Y201 XTAL OSC, actively driven (see header comment) */
+		clock-frequency = <16000000>;
 		diag0-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 		en-pwm-mode;
 		/* >= measured TSTEP (400 fCLK cycles) at this sample's speed */
