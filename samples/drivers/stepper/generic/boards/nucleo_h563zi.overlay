@@ -69,14 +69,20 @@
 		spi-max-frequency = <DT_FREQ_M(1)>;
 
 		clock-frequency = <16000000>; /* Sternbruecke Y201 XTAL OSC, actively driven (see header comment) */
-		en-pwm-mode;
 		diag0-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+		en-pwm-mode;
+		/* >= measured TSTEP (400 fCLK cycles) at this sample's speed */
+		tcoolthrs = <1000>;
+		/* 12V/0.5A: unloaded SG4_RESULT >= 58, stalled 0-6; compared as 2x */
+		sg4-threshold = <15>;
 
 		tmc2241_stepper_driver: stepper-driver {
 			compatible = "adi,tmc5241-stepper-driver";
 			en-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>; /* DRV_ENN active-low */
-			micro-step-res = <256>;
-			stallguard2-threshold = <(-10)>; /* higher sensitivity tuning pass, was 0 */
+			/* 256 at the same step interval gave no usable SG4_RESULT */
+			micro-step-res = <16>;
+			/* unused while en-pwm-mode selects StallGuard4 */
+			stallguard2-threshold = <12>;
 		};
 	};
 };

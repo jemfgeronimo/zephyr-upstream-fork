@@ -162,6 +162,10 @@ int main(void)
 
 	ms_err = stepper_set_micro_step_res(stepper_driver, (enum stepper_micro_step_resolution)3);
 	LOG_INF("Invalid microstep resolution (3) rejected with err %d", ms_err);
+
+	/* Restore the devicetree resolution after the round-trip test above */
+	stepper_set_micro_step_res(
+		stepper_driver, (enum stepper_micro_step_resolution)STEPPER_DRIVER_MICRO_STEP_RES);
 #endif
 	LOG_DBG("stepper is %p, name is %s", stepper_ctrl, stepper_ctrl->name);
 
