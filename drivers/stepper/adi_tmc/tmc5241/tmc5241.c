@@ -487,6 +487,14 @@ static void rampstat_work_handler(struct k_work *work)
 				 */
 				tmc5241_stepper_ctrl_stallguard_enable(config->motion_controller,
 								       false);
+				/* Reading RAMP_STAT released the chip's stall stop, which
+				 * restarts the move after TZEROWAIT; command a stop so the
+				 * motor stays stopped.
+				 */
+				err = stepper_ctrl_stop(config->motion_controller);
+				if (err != 0) {
+					LOG_ERR("%s: Failed to stop motor", dev->name);
+				}
 #endif /* CONFIG_STEPPER_ADI_TMC5241_STEPPER_CTRL */
 				tmc5241_stepper_driver_trigger_cb(dev,
 								  STEPPER_EVENT_STALL_DETECTED);
