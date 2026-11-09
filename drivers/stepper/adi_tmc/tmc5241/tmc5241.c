@@ -397,19 +397,27 @@ static void rampstat_work_handler(struct k_work *work)
 #endif
 	bool stalled = FIELD_GET(TMC5XXX_DRV_STATUS_SG_STATUS_MASK, drv_status) == 1U;
 
-	if (stalled && !config->has_ramp_gen) {
-		/* The raw DRVSTATUS stall flag is also set at standstill (SG_RESULT reads
-		 * 0 without motion). The DIAG0 pin hides that because the chip only
-		 * outputs the stall signal while TCOOLTHRS >= TSTEP; apply the same
+	if (stalled) {
+		/* The raw DRVSTATUS stall flag is also set at standstill and at low speed
+		 * (SG_RESULT reads 0 without motion). The DIAG0 pin hides that because the
+		 * chip only outputs the stall signal while TCOOLTHRS >= TSTEP; apply the same
 		 * condition here, since this path (polled, no DIAG0 pin) reads the raw flag.
+		 * The TMC5241 ramp generator child writes TCOOLTHRS, so read it back.
 		 */
+		uint32_t tcoolthrs = config->tcoolthrs;
 		uint32_t tstep = 0;
 
-		err = tmc5241_read(dev, TMC5241_TSTEP, &tstep);
-		if (err != 0) {
-			LOG_ERR("%s: Failed to read TSTEP register", dev->name);
+		err = 0;
+		if (config->has_ramp_gen) {
+			err = tmc5241_read(dev, TMC5241_TCOOLTHRS, &tcoolthrs);
 		}
-		stalled = (err == 0) && (config->tcoolthrs != 0) && (tstep <= config->tcoolthrs);
+		if (err == 0) {
+			err = tmc5241_read(dev, TMC5241_TSTEP, &tstep);
+		}
+		if (err != 0) {
+			LOG_ERR("%s: Failed to read TCOOLTHRS/TSTEP register", dev->name);
+		}
+		stalled = (err == 0) && (tcoolthrs != 0) && (tstep <= tcoolthrs);
 	}
 
 	if (stalled) {
@@ -442,8 +450,13 @@ static void rampstat_work_handler(struct k_work *work)
 			return;
 		}
 
+		/* Only the latched event bits (4..7): bits 8 and 9 of RAMP_STAT are status
+		 * flags (velocity_reached, position_reached) that stay set while the motor
+		 * cruises or rests at the target, and would otherwise be taken for events
+		 * when polling.
+		 */
 		const uint8_t ramp_stat_values =
-			FIELD_GET(TMC5XXX_RAMPSTAT_INT_MASK, rampstat_value);
+			FIELD_GET(TMC5241_RAMPSTAT_EVENT_MASK, rampstat_value);
 
 		if (ramp_stat_values > 0) {
 			switch (ramp_stat_values) {
@@ -608,15 +621,17 @@ static int tmc5241_init(const struct device *dev)
 			LOG_INF("DIAG_CONF readback: 0x%08x (expected 0x%08x)", diag_conf_readback,
 				diag_conf);
 		}
+	}
 
-		if (config->has_ramp_gen) {
-			/* Clear any pending interrupts */
-			uint32_t rampstat_value;
+	if (config->has_ramp_gen) {
+		/* event_pos_reached is set after reset. Clear the pending events whether or
+		 * not DIAG0 is wired, or a polled setup reports a move that never happened.
+		 */
+		uint32_t rampstat_value;
 
-			err = rampstat_read_clear(dev, &rampstat_value);
-			if (err != 0) {
-				return -EIO;
-			}
+		err = rampstat_read_clear(dev, &rampstat_value);
+		if (err != 0) {
+			return -EIO;
 		}
 	}
 

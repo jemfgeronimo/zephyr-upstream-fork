@@ -399,7 +399,10 @@ int tmc5241_stepper_ctrl_set_ramp(const struct device *dev,
 	if (err != 0) {
 		return -EIO;
 	}
-	err = tmc5241_write(controller, TMC5241_D2, 0);
+	/* D2 must not be 0 in positioning mode, even with V2 = 0 (datasheet); with
+	 * V2 = 0 that ramp phase is disabled, so any non-zero value is unused.
+	 */
+	err = tmc5241_write(controller, TMC5241_D2, ramp_data->dmax);
 	if (err != 0) {
 		return -EIO;
 	}

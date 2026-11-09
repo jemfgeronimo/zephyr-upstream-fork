@@ -64,6 +64,9 @@ extern "C" {
 #define TMC5241_D2        0x30
 #define TMC5241_SWMODE    0x34
 #define TMC5241_RAMPSTAT  0x35
+
+/* RAMP_STAT latched event bits: event_stop_l/r, event_stop_sg, event_pos_reached */
+#define TMC5241_RAMPSTAT_EVENT_MASK GENMASK(7, 4)
 #define TMC5241_XLATCH    0x36
 
 /* ---- Motor driver registers (both chips) ---- */
