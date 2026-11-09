@@ -395,7 +395,24 @@ static void rampstat_work_handler(struct k_work *work)
 #ifdef CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_STALLGUARD_LOG
 	log_stallguard(dev, drv_status);
 #endif
-	if (FIELD_GET(TMC5XXX_DRV_STATUS_SG_STATUS_MASK, drv_status) == 1U) {
+	bool stalled = FIELD_GET(TMC5XXX_DRV_STATUS_SG_STATUS_MASK, drv_status) == 1U;
+
+	if (stalled && !config->has_ramp_gen) {
+		/* The raw DRVSTATUS stall flag is also set at standstill (SG_RESULT reads
+		 * 0 without motion). The DIAG0 pin hides that because the chip only
+		 * outputs the stall signal while TCOOLTHRS >= TSTEP; apply the same
+		 * condition here, since this path (polled, no DIAG0 pin) reads the raw flag.
+		 */
+		uint32_t tstep = 0;
+
+		err = tmc5241_read(dev, TMC5241_TSTEP, &tstep);
+		if (err != 0) {
+			LOG_ERR("%s: Failed to read TSTEP register", dev->name);
+		}
+		stalled = (err == 0) && (config->tcoolthrs != 0) && (tstep <= config->tcoolthrs);
+	}
+
+	if (stalled) {
 		LOG_INF("%s: Stall detected", dev->name);
 		if (config->has_ramp_gen) {
 			/* Protective stop, independent of the RAMPSTAT.stop_sg path below. */
