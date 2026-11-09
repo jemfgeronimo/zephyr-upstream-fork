@@ -129,11 +129,17 @@ int main(void)
 
 	for (;;) {
 		if (k_sem_take(&steps_completed_sem, K_FOREVER) == 0) {
-			/* L2-010: is_moving() should be false right after STEPS_COMPLETED. */
+			/* L2-010: is_moving() comes from DRVSTATUS.STST, which is only set
+			 * 2^20 fCLK cycles (65 ms at 16 MHz) after the last step. It still
+			 * reads true right after the event and false once that time passed.
+			 */
 			bool is_moving;
 
 			stepper_ctrl_is_moving(stepper_ctrl, &is_moving);
-			LOG_INF("is_moving: %d", is_moving);
+			LOG_INF("is_moving right after the event: %d", is_moving);
+			k_msleep(100);
+			stepper_ctrl_is_moving(stepper_ctrl, &is_moving);
+			LOG_INF("is_moving 100 ms later: %d", is_moving);
 
 			ping_pong_target_position *= -1;
 			stepper_ctrl_move_by(stepper_ctrl, ping_pong_target_position);
