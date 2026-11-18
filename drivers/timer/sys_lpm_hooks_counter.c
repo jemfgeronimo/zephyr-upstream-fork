@@ -11,25 +11,12 @@
 #include <zephyr/drivers/timer/system_timer_lpm.h>
 #include <zephyr/pm/device.h>
 
-#if defined(CONFIG_CORTEX_M_SYSTICK) && !DT_HAS_CHOSEN(zephyr_system_timer_companion)
-/*
- * Compatibility fallback inherited from the Cortex-M SysTick driver:
- * the deprecated /chosen/zephyr,cortex-m-idle-timer may be used to select
- * the companion counter instead of /chosen/zephyr,system-timer-companion.
- *
- * This is scheduled for removal in Zephyr 4.6.0.
- */
-#define COMPANION_COUNTER_NODE DT_CHOSEN(zephyr_cortex_m_idle_timer)
-#else /* CONFIG_CORTEX_M_SYSTICK && !DT_HAS_CHOSEN(zephyr_system_timer_companion) */
-#define COMPANION_COUNTER_NODE DT_CHOSEN(zephyr_system_timer_companion)
-#endif /* CONFIG_CORTEX_M_SYSTICK && !DT_HAS_CHOSEN(zephyr_system_timer_companion) */
-
-BUILD_ASSERT(DT_PROP(COMPANION_COUNTER_NODE, wakeup_source),
+BUILD_ASSERT(DT_PROP(SYSTEM_TIMER_COMPANION_NODE, wakeup_source),
 	"The Low-Power Companion counter (chosen `zephyr,system-timer-companion` at path: "
-	DT_NODE_PATH(COMPANION_COUNTER_NODE) ") must be marked as wake-up capable! "
+	DT_NODE_PATH(SYSTEM_TIMER_COMPANION_NODE) ") must be marked as wake-up capable! "
 	"(hint: add the `wakeup-source` property to the node)");
 
-static const struct device *lpm_counter = DEVICE_DT_GET(COMPANION_COUNTER_NODE);
+static const struct device *lpm_counter = DEVICE_DT_GET(SYSTEM_TIMER_COMPANION_NODE);
 
 /* Companion counter's value before entry in low-power state. */
 static uint32_t counter_pre_lpm_ticks;
@@ -77,7 +64,13 @@ void z_sys_clock_lpm_enter(uint64_t max_lpm_time_us)
 	__ASSERT(!IS_ENABLED(CONFIG_PM_DEVICE) || pm_device_wakeup_is_enabled(lpm_counter),
 		"External code must not disable Low-Power Companion wake-up source!");
 
-	counter_scheduled_lpm_ticks = counter_us_to_ticks(lpm_counter, max_lpm_time_us);
+	/*
+	 * An alarm cannot be set further out than the counter can count. Waking up earlier than
+	 * requested is allowed: z_sys_clock_lpm_exit() reports the time that really elapsed and
+	 * the kernel idles again for the remainder.
+	 */
+	counter_scheduled_lpm_ticks = MIN(counter_us_to_ticks(lpm_counter, max_lpm_time_us),
+					  counter_get_top_value(lpm_counter));
 
 	struct counter_alarm_cfg cfg = {
 		.callback = stub_alarm_callback,

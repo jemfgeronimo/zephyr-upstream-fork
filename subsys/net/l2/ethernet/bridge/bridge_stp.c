@@ -124,7 +124,7 @@ static void hw_port_config(struct net_if *iface, enum ethernet_config_type type,
 			   enum ethernet_stp_port_state state)
 {
 	const struct device *dev = net_if_get_device(iface);
-	const struct ethernet_api *api = dev->api;
+	const struct ethernet_driver_api *api = dev->api;
 	struct ethernet_config config = {.stp_port_state = state};
 	int ret = -ENOTSUP;
 
@@ -465,7 +465,8 @@ bool eth_bridge_stp_port_supported(struct net_if *iface)
 	enum ethernet_hw_caps caps = net_eth_get_hw_capabilities(iface);
 
 	return (caps & ETHERNET_HW_STP_PORT_STATE) != 0 ||
-	       (caps & (ETHERNET_DSA_USER_PORT | ETHERNET_HW_PORT_FORWARDING)) == 0;
+	       ((caps & ETHERNET_HW_PORT_FORWARDING) == 0 &&
+		net_eth_get_dsa_port_type(iface) != DSA_USER_PORT);
 }
 
 void eth_bridge_stp_port_added(struct eth_bridge_iface_context *ctx, size_t index)

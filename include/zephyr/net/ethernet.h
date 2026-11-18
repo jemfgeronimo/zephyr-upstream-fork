@@ -184,12 +184,6 @@ enum ethernet_hw_caps {
 	/** VLAN Tag stripping */
 	ETHERNET_HW_VLAN_TAG_STRIP	= BIT(14),
 
-	/** DSA switch user port */
-	ETHERNET_DSA_USER_PORT		= BIT(15),
-
-	/** DSA switch conduit port */
-	ETHERNET_DSA_CONDUIT_PORT	= BIT(16),
-
 	/** IEEE 802.1Qbv (scheduled traffic) supported */
 	ETHERNET_QBV			= BIT(17),
 
@@ -212,15 +206,21 @@ enum ethernet_hw_caps {
 	ETHERNET_HW_STP_PORT_STATE	= BIT(22),
 };
 
-/** @cond INTERNAL_HIDDEN */
-
+/** DSA port type of an Ethernet interface */
 enum dsa_port_type {
+	/** Not a DSA port */
 	NON_DSA_PORT,
+	/** Ethernet interface connected to the CPU port of a DSA switch */
 	DSA_CONDUIT_PORT,
+	/** DSA switch user port */
 	DSA_USER_PORT,
+	/** DSA switch CPU port */
 	DSA_CPU_PORT,
+	/** DSA switch port connected to another DSA switch */
 	DSA_PORT,
 };
+
+/** @cond INTERNAL_HIDDEN */
 
 enum ethernet_config_type {
 	ETHERNET_CONFIG_TYPE_MAC_ADDRESS,
@@ -579,12 +579,12 @@ enum ethernet_stats_type {
 };
 
 /** Ethernet L2 API operations. */
-struct ethernet_api {
+__subsystem struct ethernet_driver_api {
 	/**
-	 * The net_if_api must be placed in first position in this
+	 * The net_if_driver_api must be placed in first position in this
 	 * struct so that we are compatible with network interface API.
 	 */
-	struct net_if_api iface_api;
+	struct net_if_driver_api iface_api;
 
 	/** Collect optional ethernet specific statistics. This pointer
 	 * should be set by driver if statistics needs to be collected
@@ -648,10 +648,7 @@ struct ethernet_api {
 
 /** @cond INTERNAL_HIDDEN */
 
-/* Make sure that the network interface API is properly setup inside
- * Ethernet API struct (it is the first one).
- */
-BUILD_ASSERT(offsetof(struct ethernet_api, iface_api) == 0);
+DEVICE_API_EXTENDS(ethernet, net_if, iface_api);
 
 struct net_eth_hdr {
 	struct net_eth_addr dst;
@@ -1093,27 +1090,38 @@ static inline
 enum ethernet_hw_caps net_eth_get_hw_capabilities(struct net_if *iface)
 {
 	const struct device *dev = net_if_get_device(iface);
-	const struct ethernet_api *api;
-	enum ethernet_hw_caps caps = (enum ethernet_hw_caps)0;
+	const struct ethernet_driver_api *api;
+
+	NET_ASSERT(dev != NULL);
+
+	api = (const struct ethernet_driver_api *)dev->api;
+	if (api->get_capabilities == NULL) {
+		return (enum ethernet_hw_caps)0;
+	}
+
+	return api->get_capabilities(dev, iface);
+}
+
+/**
+ * @brief Return the DSA port type of an Ethernet interface.
+ *
+ * @param iface Network interface
+ *
+ * @return DSA port type, NON_DSA_PORT if DSA is disabled
+ */
+static inline enum dsa_port_type net_eth_get_dsa_port_type(struct net_if *iface)
+{
 #if defined(CONFIG_NET_DSA)
 	struct ethernet_context *eth_ctx = net_if_l2_data(iface);
 
 	NET_ASSERT(eth_ctx != NULL);
 
-	if (eth_ctx->dsa_port == DSA_CONDUIT_PORT) {
-		caps = ETHERNET_DSA_CONDUIT_PORT;
-	} else if (eth_ctx->dsa_port == DSA_USER_PORT) {
-		caps = ETHERNET_DSA_USER_PORT;
-	}
+	return eth_ctx->dsa_port;
+#else
+	ARG_UNUSED(iface);
+
+	return NON_DSA_PORT;
 #endif
-	NET_ASSERT(dev != NULL);
-
-	api = (const struct ethernet_api *)dev->api;
-	if (api->get_capabilities == NULL) {
-		return caps;
-	}
-
-	return (enum ethernet_hw_caps)(caps | api->get_capabilities(dev, iface));
 }
 
 /**
@@ -1130,11 +1138,11 @@ int net_eth_get_hw_config(struct net_if *iface, enum ethernet_config_type type,
 			 struct ethernet_config *config)
 {
 	const struct device *dev = net_if_get_device(iface);
-	const struct ethernet_api *eth;
+	const struct ethernet_driver_api *eth;
 
 	NET_ASSERT(dev != NULL);
 
-	eth = (const struct ethernet_api *)dev->api;
+	eth = (const struct ethernet_driver_api *)dev->api;
 
 	NET_ASSERT(eth != NULL);
 

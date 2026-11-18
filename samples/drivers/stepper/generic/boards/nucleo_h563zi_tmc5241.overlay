@@ -15,8 +15,8 @@
  * use the same pins as the TMC2241 and were confirmed by register readback.
  *
  * Use it in place of the default overlay:
- *   west build -b nucleo_h563zi samples/drivers/stepper/generic -- \
- *       -DDTC_OVERLAY_FILE=boards/nucleo_h563zi_tmc5241.overlay
+ *   west build -b nucleo_h563zi samples/drivers/stepper/generic
+ *       -- -DDTC_OVERLAY_FILE=boards/nucleo_h563zi_tmc5241.overlay
  *
  * The TMC5241 moves itself with its ramp generator, so there is no
  * STEP/DIR motion controller here. The ramp values are deliberately slow

@@ -13,8 +13,7 @@
  * Run the nested interrupt test for the supported platforms only.
  */
 #if defined(CONFIG_CPU_CORTEX_M) || defined(CONFIG_ARC) || \
-	defined(CONFIG_GIC) || defined(CONFIG_NRFX_CLIC) || \
-	defined(CONFIG_RISCV_NESTED_INTERRUPTS)
+	defined(CONFIG_GIC) || defined(CONFIG_RISCV_NESTED_INTERRUPTS)
 #define TEST_NESTED_ISR
 #endif
 
@@ -92,6 +91,29 @@
 
 #define IRQ0_PRIO	1
 #define IRQ1_PRIO	2
+#elif defined(CONFIG_RISCV_NESTED_INTERRUPTS) && defined(CONFIG_CLIC)
+/*
+ * The CLIC lines that software can trigger depend on the SoC. The test is
+ * skipped on other SoCs. A larger priority gives a higher level, which
+ * preempts a lower one.
+ */
+#if defined(CONFIG_SOC_AE350_INTERRUPT_TYPE_CLIC)
+#define IRQ0_LINE	19
+#define IRQ1_LINE	20
+#endif
+
+#define IRQ0_PRIO	1
+#define IRQ1_PRIO	2
+#elif defined(CONFIG_RISCV_NESTED_INTERRUPTS) && defined(CONFIG_RISCV_HAS_AIA)
+/*
+ * In AIA a smaller number is more urgent. MSI mode orders by identity only,
+ * so IRQ1 gets both the smaller priority and the smaller source number.
+ */
+#define IRQ0_LINE	(IRQ_TO_L2(10) | CONFIG_2ND_LVL_INTR_00_OFFSET)
+#define IRQ1_LINE	(IRQ_TO_L2(9) | CONFIG_2ND_LVL_INTR_00_OFFSET)
+
+#define IRQ0_PRIO	2
+#define IRQ1_PRIO	1
 #elif defined(CONFIG_RISCV_NESTED_INTERRUPTS)
 /*
  * Otherwise use the supervisor software and timer interrupts, which an
@@ -121,6 +143,20 @@
 
 #define IRQ0_PRIO	1
 #define IRQ1_PRIO	0
+#endif
+
+/*
+ * A CLIC only lets software set the pending bit of an edge triggered
+ * interrupt, the one of a level triggered interrupt follows its input.
+ * An APLIC source is edge triggered, so that software can set it pending.
+ */
+#if defined(CONFIG_RISCV_HAS_CLIC)
+#define IRQ_TRIG_FLAGS	1 /* rising edge */
+#elif defined(CONFIG_RISCV_HAS_AIA)
+#include <zephyr/drivers/interrupt_controller/riscv_aplic.h>
+#define IRQ_TRIG_FLAGS	APLIC_SM_EDGE_RISE
+#else
+#define IRQ_TRIG_FLAGS	0
 #endif
 
 /* Everywhere else an ISR runs with interrupts already enabled */
@@ -210,8 +246,8 @@ ZTEST(interrupt_feature, test_nested_isr)
 
 	/* Connect and enable test IRQs */
 #if defined(IRQ0_LINE) && defined(IRQ1_LINE)
-	IRQ_CONNECT(IRQ0_LINE, IRQ0_PRIO, isr0, 0, 0);
-	IRQ_CONNECT(IRQ1_LINE, IRQ1_PRIO, isr1, 0, 0);
+	IRQ_CONNECT(IRQ0_LINE, IRQ0_PRIO, isr0, 0, IRQ_TRIG_FLAGS);
+	IRQ_CONNECT(IRQ1_LINE, IRQ1_PRIO, isr1, 0, IRQ_TRIG_FLAGS);
 #else
 	arch_irq_connect_dynamic(irq_line_0, IRQ0_PRIO, isr0, NULL, 0);
 	arch_irq_connect_dynamic(irq_line_1, IRQ1_PRIO, isr1, NULL, 0);

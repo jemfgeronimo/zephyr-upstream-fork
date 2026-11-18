@@ -20,12 +20,13 @@ tests:
       - siwx917_rb4338a
       - siwx917_rb4342a
       - siwx917_dk2605a
-      - adp_xc7k/ae350
-      - adp_xc7k/ae350/clic
+      - adp_xc7k/ae350_a25
+      - adp_xc7k/ae350_d23/clic
       - bg29_rb4420a
       - xg24_rb4187c
       - kg100s_rb4332a
       - pic32cz_ca80_cult
+      - pic32cz_ca90_cult
       - sixg301_rb4407a
       - kit_psc3m5_evk
       - kit_psc3m6_eval/psc3m6ges3ahq1

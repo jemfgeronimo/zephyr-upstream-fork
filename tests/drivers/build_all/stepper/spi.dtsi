@@ -167,10 +167,59 @@ adi_tmc51xx_2: adi-tmc51xx@2 {
 	};
 };
 
-adi_tmc5241_1: adi-tmc5241@3 {
-	compatible = "adi,tmc5241";
-	status = "okay";
+adi_tmc522x: adi_tmc522x@3 {
+	compatible = "adi,tmc522x";
 	reg = <0x03>;
+	spi-max-frequency = <4000000>;
+
+	clock-frequency = <16000000>;
+	chopper-mode = "spreadcycle";
+	chm-mode = "spreadcycle";
+	status = "okay";
+
+	tmc522x_stepper_driver: tmc522x_stepper_driver {
+		compatible = "adi,tmc522x-stepper-driver";
+		idx = <0>;
+		micro-step-res = <16>;
+		stallguard2-threshold = <0>;
+
+		ihold = <16>;
+		irun = <31>;
+		irundelay = <4>;
+		iholddelay = <3>;
+		tpowerdown = <10>;
+
+		toff = <5>;
+		tbl = <3>;
+		hstrt = <7>;
+		hend = <3>;
+
+		fs-gain = <0>;
+		fs-sense = <0>;
+		global-scaler = <231>;
+	};
+
+	tmc522x_motion_controller: tmc522x_motion_controller {
+		compatible = "adi,tmc522x-stepper-ctrl";
+		idx = <0>;
+
+		vstart = <10>;
+		vstop = <10>;
+		v1 = <0>;
+		amax = <10000>;
+		vmax = <10000>;
+		dmax = <10000>;
+		d1 = <10000>;
+
+		a2 = <10000>;
+		v2 = <0>;
+		d2 = <10000>;
+	};
+};
+
+adi_tmc5241_1: adi-tmc5241@4 {
+	compatible = "adi,tmc5241";
+	reg = <0x04>;
 	spi-max-frequency = <8000000>;
 	label = "tmc5241_1";
 
@@ -179,6 +228,7 @@ adi_tmc5241_1: adi-tmc5241@3 {
 	en-pwm-mode;
 	shaft;
 	clock-frequency = <16000000>; /* Internal/External Clock frequency */
+	status = "okay";
 
 	tmc5241_1_stepper_driver: tmc5241-1-stepper-driver {
 		compatible = "adi,tmc5241-stepper-driver";
@@ -209,16 +259,16 @@ adi_tmc5241_1: adi-tmc5241@3 {
 	};
 };
 
-adi_tmc2241_1: adi-tmc2241@4 {
+adi_tmc2241_1: adi-tmc2241@5 {
 	compatible = "adi,tmc2241";
-	status = "okay";
-	reg = <0x04>;
+	reg = <0x05>;
 	spi-max-frequency = <8000000>;
 	label = "tmc2241_1";
 
 	en-pwm-mode;
 	shaft;
 	clock-frequency = <16000000>; /* Internal/External Clock frequency */
+	status = "okay";
 
 	/* TMC2241 is driver-only; no stepper-ctrl child (no ramp generator hardware) */
 	tmc2241_1_stepper_driver: tmc2241-1-stepper-driver {

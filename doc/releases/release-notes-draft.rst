@@ -41,6 +41,15 @@ Security Vulnerability Related
 Libraries / Subsystems
 **********************
 
+* Architectures
+
+  * arm64: the x19-x28 callee-saved registers are now captured in the exception
+    stack frame on the paths that may dump or unwind it (synchronous faults,
+    SError, kernel oops and syscall entry) and are included in the coredump
+    architecture block, version 3, when
+    :kconfig:option:`CONFIG_EXTRA_EXCEPTION_INFO` is enabled. The gdbstub
+    coredump decoder was updated accordingly.
+
 * Bluetooth
 
   * Added a HID Service server (:kconfig:option:`CONFIG_BT_HIDS`), the service
@@ -64,10 +73,21 @@ Libraries / Subsystems
   * Added a PSA Protected Storage backend, enabled with
     :kconfig:option:`CONFIG_FIDO2_STORAGE_PSA_PROTECTED_STORAGE`.
 
+* I3C
+
+  * The requested tCAS (clock after START) is configurable through
+    :c:member:`i3c_config_controller.tcas_ps` and the ``tcas-ps`` controller
+    Devicetree property.
+
 * LoRaWAN
 
   * The native backend now supports the AS923 region
     (:kconfig:option:`CONFIG_LORAWAN_REGION_AS923`).
+
+* Mbed TLS
+
+  * :kconfig:option:`CONFIG_MBEDTLS_SSL_CLI_C`
+  * :kconfig:option:`CONFIG_MBEDTLS_SSL_SRV_C`
 
 * Networking
 
@@ -80,9 +100,18 @@ Libraries / Subsystems
     longer held back by the client's delayed acknowledgements. Applications that
     prefer Nagle's algorithm can disable
     :kconfig:option:`CONFIG_HTTP_SERVER_TCP_NODELAY`.
+  * HTTP server: HTTPS services no longer run the TLS handshake inside ``accept()``. A client that
+    opens a connection and then stalls its handshake used to stop the whole server, HTTP services
+    included, for up to :kconfig:option:`CONFIG_NET_SOCKETS_TLS_CONNECT_TIMEOUT` per connection.
   * The connection manager tracks name resolution readiness, see
     :ref:`conn_mgr_monitoring_dns`: :c:macro:`NET_EVENT_L4_DNS_READY`,
     :c:macro:`NET_EVENT_L4_DNS_LOST` and :c:func:`conn_mgr_dns_is_ready`.
+  * Threads can block until the network is ready with :c:func:`conn_mgr_wait_ready`,
+    instead of tracking connection manager events, see :ref:`conn_mgr_monitoring_waiting`.
+    With a ``last_seen`` value, it also paces retries after a failed connection attempt.
+  * :c:func:`conn_mgr_get_ready_addr_family` gives the ``ai_family`` to pass to
+    :c:func:`zsock_getaddrinfo` so that hostnames resolve only to addresses of a ready
+    address family, see :ref:`conn_mgr_monitoring_addr_family`.
   * :c:func:`dns_resolve_get_server_families` reports the address families of the
     available unicast DNS servers.
   * :c:func:`zsock_getaddrinfo` orders ``AF_UNSPEC`` results as per a subset of
@@ -116,6 +145,10 @@ Libraries / Subsystems
       :c:enumerator:`ETHERNET_HW_STP_PORT_STATE` capability and takes the port state and FDB
       flushes from the protocol.
 
+  * TCP can scale its window (RFC 7323) when :kconfig:option:`CONFIG_NET_TCP_WINDOW_SCALE` is
+    enabled, so a connection can use send and receive windows above 64 KB. The window size
+    options, ``SO_RCVBUF`` and ``SO_SNDBUF`` then accept values up to 65535 << 14.
+
 * PTP Clock
 
   * :c:func:`ptp_clock_adjust_rate` adjusts the clock rate by an offset in scaled parts per
@@ -124,6 +157,19 @@ Libraries / Subsystems
 
   * :ref:`MQTT 5.0 <mqtt_socket_interface>` support in the MQTT client
     (:kconfig:option:`CONFIG_MQTT_VERSION_5_0`) is no longer experimental.
+
+* Utilities
+
+  * :c:func:`utf8_is_valid` checks a given number of bytes for well-formed UTF-8
+    as defined in :rfc:`3629`; overlong sequences, UTF-16 surrogates and code
+    points above U+10FFFF are refused.
+
+* Shell
+
+  * With :kconfig:option:`CONFIG_SHELL_WILDCARD` enabled, an argument containing ``*`` or ``?``
+    that matches no subcommand is now passed to the command handler unchanged. Previously the
+    command was run without that argument and its remaining arguments, which usually failed
+    with a wrong argument count.
 
 Devicetree
 **********
@@ -148,8 +194,18 @@ Devicetree
     ``cred keydel``, ``cred csr`` and ``cred pubkey`` commands, and the
     :zephyr:code-sample:`tls-keygen` sample shows the full flow.
 
+* ESP32 SDHC slots support GPIO-based card detection, including GPIOs on external expanders.
+  Configure the optional ``cd-gpios`` property in :dtcompatible:`espressif,esp32-sdhc-slot`.
+  An optional sleep pinctrl state controls the signal pins while card power is off.
+
 Other notable changes
 *********************
+
+* Architectures
+
+  * ARM Cortex-A/R: with :kconfig:option:`CONFIG_USE_SWITCH`, ISRs run in SYS mode and nested
+    interrupts use the interrupt stack, which fixes return address corruption by a nested IRQ
+    (:github:`122601`).
 
 * Bluetooth
 
