@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026
+ * Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -29,19 +29,6 @@
  * instead (see the instantiation block at the bottom of this file).
  */
 
-/* Datasheet (TMC2241, Table "Functional Timings"): Wake-Up Time from Sleep
- * (TWAKE, SLEEPN=1 to normal operation) is 2.5ms MAX - used in tmc5241_init().
- * SLEEP is only just driven high (by a board-level SYS_INIT hook at a lower
- * priority than this device's init, where wired) microseconds before this
- * point; without waiting out TWAKE, the earliest register writes below
- * (GCONF, DIAG_CONF) land inside the wake window and silently don't take
- * effect. Hardware-confirmed via register readback, reproducible via both a
- * debugger-initiated and a physical NRST reset: fails with no delay, and the
- * datasheet max alone (rounded up to 3ms, no extra margin) is sufficient -
- * tested empirically rather than assumed.
- */
-#define TMC5241_WAKE_FROM_SLEEP_MAX_MS 3 /* datasheet 2.5ms MAX, rounded up */
-
 #include <stdlib.h>
 
 #include <zephyr/drivers/stepper/stepper.h>
@@ -57,6 +44,11 @@
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(tmc5241, CONFIG_STEPPER_LOG_LEVEL);
+
+/* Wake-up time from sleep (SLEEPN high to normal operation) is 2.5 ms max. Register
+ * writes issued earlier are silently dropped.
+ */
+#define TMC5241_WAKE_FROM_SLEEP_MAX_MS 3
 
 /* DT_ANY_INST_ON_BUS_STATUS_OKAY() only works for a single compatible; with
  * two compatibles here, key off the Kconfig symbols Kconfig.tmc5241 selects
@@ -78,14 +70,13 @@ struct tmc5241_config {
 	const struct gpio_dt_spec sw_sel_gpio;
 	uint8_t uart_addr;
 #endif
-	/* Populated on both buses (DIAG0 is a dedicated pin), but only treated as
-	 * interrupt-driven on SPI (see tmc5241_is_interrupt_driven()) - on UART
-	 * it's still wired up as a backstop while polling continues unconditionally.
+	/* DIAG0 is a dedicated pin on both buses; when wired, events are
+	 * interrupt-driven instead of polled.
 	 */
 	struct gpio_dt_spec diag0_gpio;
 	/* NULL if no ctrl child (always NULL for TMC2241) */
 	const struct device *motion_controller;
-	const struct device *stepper_driver; /* NULL if no stepper-driver child */
+	const struct device *stepper_driver;
 };
 
 struct tmc5241_data {
@@ -99,9 +90,7 @@ struct tmc5241_data {
 
 static int tmc5241_bus_check_spi(const union tmc_bus *bus, uint8_t comm_type)
 {
-	if (comm_type != TMC_COMM_SPI) {
-		return -ENOTSUP;
-	}
+	ARG_UNUSED(comm_type);
 
 	if (!spi_is_ready_dt(&bus->spi)) {
 		LOG_ERR_DEVICE_NOT_READY(bus->spi.bus);
@@ -114,27 +103,15 @@ static int tmc5241_bus_check_spi(const union tmc_bus *bus, uint8_t comm_type)
 static int tmc5241_reg_write_spi(const struct device *dev, uint8_t reg_addr, uint32_t reg_val)
 {
 	const struct tmc5241_config *config = dev->config;
-	int err;
 
-	err = tmc_spi_write_register(&config->bus.spi, TMC5XXX_WRITE_BIT, reg_addr, reg_val);
-	if (err < 0) {
-		LOG_ERR("Failed to write register 0x%x with value 0x%x", reg_addr, reg_val);
-	}
-
-	return err;
+	return tmc_spi_write_register(&config->bus.spi, TMC5XXX_WRITE_BIT, reg_addr, reg_val);
 }
 
 static int tmc5241_reg_read_spi(const struct device *dev, uint8_t reg_addr, uint32_t *reg_val)
 {
 	const struct tmc5241_config *config = dev->config;
-	int err;
 
-	err = tmc_spi_read_register(&config->bus.spi, TMC5XXX_ADDRESS_MASK, reg_addr, reg_val);
-	if (err < 0) {
-		LOG_ERR("Failed to read register 0x%x", reg_addr);
-	}
-
-	return err;
+	return tmc_spi_read_register(&config->bus.spi, TMC5XXX_ADDRESS_MASK, reg_addr, reg_val);
 }
 
 const struct tmc_bus_io tmc5241_spi_bus_io = {
@@ -148,9 +125,7 @@ const struct tmc_bus_io tmc5241_spi_bus_io = {
 
 static int tmc5241_bus_check_uart(const union tmc_bus *bus, uint8_t comm_type)
 {
-	if (comm_type != TMC_COMM_UART) {
-		return -ENOTSUP;
-	}
+	ARG_UNUSED(comm_type);
 
 	if (!device_is_ready(bus->uart)) {
 		LOG_ERR_DEVICE_NOT_READY(bus->uart);
@@ -162,27 +137,15 @@ static int tmc5241_bus_check_uart(const union tmc_bus *bus, uint8_t comm_type)
 static int tmc5241_reg_write_uart(const struct device *dev, uint8_t reg_addr, uint32_t reg_val)
 {
 	const struct tmc5241_config *config = dev->config;
-	int err;
 
-	err = tmc_uart_write_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
-	if (err < 0) {
-		LOG_ERR("Failed to write register 0x%x with value 0x%x", reg_addr, reg_val);
-	}
-
-	return err;
+	return tmc_uart_write_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
 }
 
 static int tmc5241_reg_read_uart(const struct device *dev, uint8_t reg_addr, uint32_t *reg_val)
 {
 	const struct tmc5241_config *config = dev->config;
-	int err;
 
-	err = tmc_uart_read_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
-	if (err < 0) {
-		LOG_ERR("Failed to read register 0x%x", reg_addr);
-	}
-
-	return err;
+	return tmc_uart_read_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
 }
 
 const struct tmc_bus_io tmc5241_uart_bus_io = {
@@ -199,8 +162,8 @@ static inline int tmc5241_bus_check(const struct device *dev)
 	return config->bus_io->check(&config->bus, config->comm_type);
 }
 
-/* TMC2241 has no ramp generator - callers must check this before touching
- * ramp-gen-only registers (XACTUAL, RAMPMODE, RAMPSTAT, ...).
+/* Only the TMC5241 has a ramp generator; the TMC2241 shares this driver but
+ * lacks the ramp-generator registers (XACTUAL, RAMPMODE, RAMPSTAT, ...).
  */
 bool tmc5241_has_ramp_gen(const struct device *dev)
 {
@@ -226,22 +189,6 @@ int tmc5241_read_actual_position(const struct device *dev, int32_t *position)
 		return -ENOSYS;
 	}
 
-	/* Check if device is using UART and is currently moving */
-	if (config->comm_type == TMC_COMM_UART && config->motion_controller != NULL) {
-		bool is_moving;
-
-		err = stepper_ctrl_is_moving(config->motion_controller, &is_moving);
-		if (err != 0) {
-			return -EIO;
-		}
-
-		if (is_moving) {
-			LOG_WRN("%s: Reading position while moving over UART is not supported",
-				dev->name);
-			return -ENOTSUP;
-		}
-	}
-
 	err = tmc5241_read(dev, TMC5241_XACTUAL, &raw_value);
 	if (err != 0) {
 		return -EIO;
@@ -253,15 +200,10 @@ int tmc5241_read_actual_position(const struct device *dev, int32_t *position)
 
 bool tmc5241_is_interrupt_driven(const struct device *dev)
 {
-	__maybe_unused const struct tmc5241_config *config = dev->config;
+	const struct tmc5241_config *config = dev->config;
 
-	IF_ENABLED(TMC5241_BUS_SPI, ({
-		if (config->comm_type == TMC_COMM_SPI && config->diag0_gpio.port) {
-			/* Using interrupt-driven approach - no polling needed */
-			return true;
-		}
-	}))
-	return false;
+	/* DIAG0 is a dedicated pin; only DIAG1 is shared with the single-wire UART. */
+	return config->diag0_gpio.port != NULL;
 }
 
 void tmc5241_reschedule_rampstat_callback(const struct device *dev)
@@ -306,17 +248,10 @@ int tmc5241_read(const struct device *dev, uint8_t reg_addr, uint32_t *reg_val)
 	return 0;
 }
 
-/* TMC2241 legitimately has no ctrl child at runtime (only TMC5241 does), so
- * this can't be resolved with a compile-time #ifdef - the NULL check has to
- * happen here instead.
- */
+/* The stepper-driver child is mandatory (see BUILD_ASSERT in TMC5241_DEVICE_DEFINE). */
 void tmc5241_stepper_driver_trigger_cb(const struct device *dev, enum stepper_event event)
 {
 	const struct tmc5241_config *config = dev->config;
-
-	if (config->stepper_driver == NULL) {
-		return;
-	}
 
 	tmc5241_stepper_driver_notify_event(config->stepper_driver, event);
 }
@@ -508,7 +443,7 @@ static void rampstat_work_handler(struct k_work *work)
 		}
 	}
 
-	/* For SPI/UART with DIAG0 pin, we use interrupt-driven approach */
+	/* With a DIAG0 pin the next event arrives by interrupt, otherwise keep polling */
 	if (!tmc5241_is_interrupt_driven(dev)) {
 		k_work_reschedule(
 			&stepper_data->rampstat_callback_dwork,
@@ -543,17 +478,7 @@ static int tmc5241_init(const struct device *dev)
 		return err;
 	}
 
-	/* Datasheet (TMC2241, Table "Functional Timings"): Wake-Up Time from
-	 * Sleep (TWAKE, SLEEPN=1 to normal operation) is 2.5ms MAX. SLEEP is
-	 * only just driven high (by a board-level SYS_INIT hook at a lower
-	 * priority than this device's init, where wired) microseconds before
-	 * this point - without waiting out TWAKE, the earliest register writes
-	 * below (GCONF, DIAG_CONF) land inside the wake window and silently
-	 * don't take effect. Hardware-confirmed via register readback: fails
-	 * with no delay, matches exactly with this one, reproducible via both
-	 * a debugger-initiated and a physical NRST reset.
-	 */
-	k_msleep(TMC5241_WAKE_FROM_SLEEP_MAX_MS); /* testing datasheet max alone, no extra margin */
+	k_msleep(TMC5241_WAKE_FROM_SLEEP_MAX_MS);
 
 #if TMC5241_BUS_UART
 	/* Initialize SW_SEL GPIO if using UART and GPIO is specified */
@@ -779,6 +704,9 @@ static int tmc5241_init(const struct device *dev)
 #define TMC5241_DEVICE_DEFINE(node_id, ramp_gen)                                                  \
 	BUILD_ASSERT((DT_PROP(node_id, clock_frequency) > 0),                                     \
 		     "clock frequency must be non-zero positive value");                          \
+	BUILD_ASSERT(DT_NODE_HAS_STATUS_OKAY(                                                     \
+			     DT_CHILD_BY_COMPATIBLE(node_id, adi_tmc5241_stepper_driver)),        \
+		     "adi,tmc5241-stepper-driver child node is required");                        \
 	static struct tmc5241_data tmc5241_data_##node_id = {                                     \
 		.dev = DEVICE_DT_GET(node_id),                                                    \
 	};                                                                                         \

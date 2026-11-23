@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026
+ * Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -240,11 +240,11 @@ static int tmc5241_stepper_ctrl_move_to(const struct device *dev, const int32_t 
 				  K_MSEC(data->sg_settings.sg_velocity_check_interval_ms));
 	}
 	if (data->callback) {
-		/* For SPI with DIAG0 pin, we use interrupt-driven approach */
+		/* With a DIAG0 pin events are interrupt-driven */
 		if (tmc5241_is_interrupt_driven(config->controller)) {
 			return 0;
 		}
-		/* For UART or SPI without DIAG0, reschedule RAMPSTAT polling */
+		/* Without DIAG0, reschedule RAMPSTAT polling */
 #ifdef CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC
 		tmc5241_reschedule_rampstat_callback(config->controller);
 #endif /* CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC */
@@ -310,11 +310,11 @@ static int tmc5241_stepper_ctrl_run(const struct device *dev,
 				  K_MSEC(data->sg_settings.sg_velocity_check_interval_ms));
 	}
 	if (data->callback) {
-		/* For SPI with DIAG0 pin, we use interrupt-driven approach */
+		/* With a DIAG0 pin events are interrupt-driven */
 		if (tmc5241_is_interrupt_driven(controller)) {
 			return 0;
 		}
-		/* For UART or SPI without DIAG0, reschedule RAMPSTAT polling */
+		/* Without DIAG0, reschedule RAMPSTAT polling */
 #ifdef CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC
 		tmc5241_reschedule_rampstat_callback(controller);
 #endif /* CONFIG_STEPPER_ADI_TMC5241_RAMPSTAT_POLL_INTERVAL_IN_MSEC */
