@@ -1,0 +1,111 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * TMC2241-EVKIT on the Nucleo-H563ZI through the "Sternbruecke Nucleo V0.1"
+ * adapter, talking single-wire UART instead of SPI. Same pins, STEP/DIR path
+ * and chip settings as nucleo_h563zi.overlay, see the header of that file and
+ * of samples/drivers/stepper/tmc5241/boards/nucleo_h563zi_uart.overlay for the
+ * UART path (LPUART1 PB6/PB7 through the U204 mux, select PE14 high) and the
+ * address pins (CSN/SCK/SDI = PG12/PA5/PB5 driven low for node address 0).
+ *
+ * Use it in place of the default overlay:
+ *   west build -b nucleo_h563zi samples/drivers/stepper/generic
+ *       -- -DDTC_OVERLAY_FILE=boards/nucleo_h563zi_tmc2241_uart.overlay
+ */
+
+/ {
+	aliases {
+		stepper-driver = &tmc2241_stepper_driver;
+		stepper-ctrl = &step_dir_motion_control;
+	};
+
+	step_dir_motion_control: motion-controller {
+		compatible = "zephyr,gpio-step-dir-stepper-ctrl";
+		step-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>; /* STEP_INT, via Sternbruecke D37 */
+		dir-gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;   /* DIR_INT, via Sternbruecke D32 */
+		stepper-driver = <&tmc2241_stepper_driver>;
+	};
+};
+
+&gpioe {
+	sleep-hog {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	iref-r2-hog {
+		gpio-hog;
+		gpios = <0 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	uart-mux-hog {
+		gpio-hog;
+		gpios = <14 GPIO_ACTIVE_HIGH>; /* Nucleo D4, high = UART path */
+		output-high;
+	};
+};
+
+&gpiob {
+	iref-r3-hog {
+		gpio-hog;
+		gpios = <10 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+
+	addr-ad0-hog {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>; /* SDI/AD0 = D11 */
+		output-low;
+	};
+};
+
+&gpioa {
+	addr-ad1-hog {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>; /* SCK/AD1 = D13 */
+		output-low;
+	};
+};
+
+&gpiog {
+	addr-ad2-hog {
+		gpio-hog;
+		gpios = <12 GPIO_ACTIVE_HIGH>; /* CSN/AD2 = D7 */
+		output-low;
+	};
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&lpuart1 {
+	current-speed = <115200>;
+	status = "okay";
+
+	tmc2241: tmc2241 {
+		compatible = "adi,tmc2241";
+		uart-device-addr = <0>;
+		uart-en-gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>; /* UART_EN high = UART mode */
+
+		/* Sternbruecke Y201 XTAL OSC, actively driven */
+		clock-frequency = <16000000>;
+		diag0-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+		en-pwm-mode;
+		/* Above the TSTEP seen at stall time (about 1750 over UART with this sample, where the
+		 * UART reads in the DIAG0 handler share the system workqueue with the STEP timing)
+		 */
+		tcoolthrs = <4000>;
+		sg4-threshold = <15>;
+
+		tmc2241_stepper_driver: stepper-driver {
+			compatible = "adi,tmc5241-stepper-driver";
+			en-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>; /* DRV_ENN active-low */
+			micro-step-res = <16>;
+			stallguard2-threshold = <12>;
+		};
+	};
+};

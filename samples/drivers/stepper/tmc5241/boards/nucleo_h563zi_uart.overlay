@@ -1,0 +1,125 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * TMC5241-EVKIT on the Nucleo-H563ZI through the "Sternbruecke Nucleo V0.1"
+ * adapter, talking single-wire UART instead of SPI. Use it in place of the
+ * default overlay:
+ *   west build -b nucleo_h563zi samples/drivers/stepper/tmc5241
+ *       -- -DDTC_OVERLAY_FILE=boards/nucleo_h563zi_uart.overlay
+ *
+ * The EVKIT ties UART_TX to DIAG1/SW through 1 kOhm, so the host reads back
+ * its own bytes (the driver checks that echo) and then the chip's reply.
+ *   Eval J201 pin 21 UART_TX -> mux U204 -> Nucleo D1 -> PB6 (LPUART1_TX)
+ *   Eval J201 pin 22 DIAG1/UART_RX -> mux U204 -> Nucleo D0 -> PB7 (LPUART1_RX)
+ * The U204 mux select (Nucleo D4 = PE14) must be high to pick the UART path
+ * (measured on the bench: with D4 low PB7 never follows PB6).
+ *
+ * In UART mode the SPI pins become the node address (CSN/SCK/SDI = AD2/AD1/AD0)
+ * and the chip's NODEADDR resets to 0, so the three Nucleo pins are driven low
+ * (D8 = PF3, D13 = PA5, D11 = PB5) for address 0. SPI1 is disabled so it
+ * does not take those pins back.
+ *   UART_EN (PE12) high - UART mode, set by the driver (uart-en-gpios)
+ *   SLEEPN  (PE6)  high
+ */
+
+/ {
+	aliases {
+		stepper-driver = &tmc5241_stepper_driver;
+		stepper-ctrl = &tmc5241_motion_controller;
+	};
+};
+
+&gpioe {
+	sleep-hog {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	iref-r2-hog {
+		gpio-hog;
+		gpios = <0 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	uart-mux-hog {
+		gpio-hog;
+		gpios = <14 GPIO_ACTIVE_HIGH>; /* Nucleo D4, high = UART path (checked on the bench) */
+		output-high;
+	};
+};
+
+&gpiob {
+	iref-r3-hog {
+		gpio-hog;
+		gpios = <10 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+
+	addr-ad0-hog {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>; /* SDI/AD0 = D11 */
+		output-low;
+	};
+};
+
+&gpioa {
+	addr-ad1-hog {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>; /* SCK/AD1 = D13 */
+		output-low;
+	};
+};
+
+&gpiof {
+	addr-ad2-hog {
+		gpio-hog;
+		gpios = <3 GPIO_ACTIVE_HIGH>; /* CSN/AD2 = D8 */
+		output-low;
+	};
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&lpuart1 {
+	current-speed = <115200>;
+	status = "okay";
+
+	tmc5241: tmc5241 {
+		compatible = "adi,tmc5241";
+		uart-device-addr = <0>;
+		uart-en-gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>; /* UART_EN high = UART mode */
+
+		/* Sternbruecke Y201 XTAL OSC */
+		clock-frequency = <16000000>;
+		diag0-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+
+		tmc5241_stepper_driver: stepper-driver {
+			compatible = "adi,tmc5241-stepper-driver";
+			en-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>; /* DRV_ENN active-low */
+			micro-step-res = <256>;
+			stallguard2-threshold = <4>;
+		};
+
+		tmc5241_motion_controller: stepper-ctrl {
+			compatible = "adi,tmc5241-stepper-ctrl";
+			vstart = <100>;
+			vstop = <200>;
+			a1 = <3000>;
+			v1 = <50000>;
+			d1 = <3000>;
+			vmax = <100000>;
+			amax = <3000>;
+			dmax = <3000>;
+			tzerowait = <100>;
+			thigh = <0>;
+			tcoolthrs = <200>;
+			ihold = <1>;
+			irun = <10>;
+			iholddelay = <1>;
+		};
+	};
+};
