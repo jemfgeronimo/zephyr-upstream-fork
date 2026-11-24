@@ -99,15 +99,6 @@ static int tmc5241_stepper_driver_enable(const struct device *dev)
 		return -EIO;
 	}
 
-	/* SRS-DRV-001 / STS Software Item 1 verification: confirm TOFF reads back non-zero. */
-	uint32_t chopconf_readback;
-
-	err = tmc5241_read(controller, TMC5241_CHOPCONF, &chopconf_readback);
-	if (err == 0) {
-		LOG_INF("CHOPCONF readback after enable: 0x%08x, TOFF=%d", chopconf_readback,
-			(int)FIELD_GET(TMC5XXX_CHOPCONF_DRV_ENABLE_MASK, chopconf_readback));
-	}
-
 	return 0;
 }
 
@@ -137,15 +128,6 @@ static int tmc5241_stepper_driver_disable(const struct device *dev)
 	err = tmc5241_write(controller, TMC5241_CHOPCONF, reg_value);
 	if (err != 0) {
 		return -EIO;
-	}
-
-	/* SRS-DRV-002 / STS Software Item 1 verification: confirm TOFF reads back zero. */
-	uint32_t chopconf_readback;
-
-	err = tmc5241_read(controller, TMC5241_CHOPCONF, &chopconf_readback);
-	if (err == 0) {
-		LOG_INF("CHOPCONF readback after disable: 0x%08x, TOFF=%d", chopconf_readback,
-			(int)FIELD_GET(TMC5XXX_CHOPCONF_DRV_ENABLE_MASK, chopconf_readback));
 	}
 
 	return 0;
@@ -246,25 +228,6 @@ static int tmc5241_stepper_driver_init(const struct device *dev)
 	if (err != 0) {
 		return -EIO;
 	}
-
-	/* SRS-DRV-007 / STS Software Item 18 verification: confirm COOLCONF.SGT
-	 * reads back the DT-configured threshold immediately after init.
-	 */
-	uint32_t coolconf_readback;
-
-	err = tmc5241_read(controller, TMC5241_COOLCONF, &coolconf_readback);
-	if (err != 0) {
-		return -EIO;
-	}
-	/* SGT is a 7-bit signed field (bits 22:16) - sign-extend from bit 6, not bit 7,
-	 * or negative values (e.g. -10) get misread as large positives (e.g. 118).
-	 */
-	int8_t sgt_readback = (int8_t)(FIELD_GET(TMC5241_COOLCONF_SGT_MASK, coolconf_readback)
-					<< 1) >>
-			      1;
-
-	LOG_INF("COOLCONF readback: 0x%08x, SGT=%d (expected %d)", coolconf_readback,
-		sgt_readback, config->sg_threshold);
 
 	err = tmc5241_stepper_driver_set_micro_step_res(dev, config->default_micro_step_res);
 	if (err != 0) {

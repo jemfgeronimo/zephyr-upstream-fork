@@ -554,17 +554,6 @@ static int tmc5241_init(const struct device *dev)
 		if (err != 0) {
 			return -EIO;
 		}
-
-		/* SRS-DEP-003 / STS Software Item 6 verification: confirm DIAG_CONF
-		 * reads back the bits just written.
-		 */
-		uint32_t diag_conf_readback;
-
-		err = tmc5241_read(dev, TMC5241_DIAG_CONF, &diag_conf_readback);
-		if (err == 0) {
-			LOG_INF("DIAG_CONF readback: 0x%08x (expected 0x%08x)", diag_conf_readback,
-				diag_conf);
-		}
 	}
 
 	if (config->has_ramp_gen) {
@@ -605,32 +594,14 @@ static int tmc5241_init(const struct device *dev)
 		return -EIO;
 	}
 
-	/* SRS-DEP-003 / STS Software Item 6 verification: confirm GCONF reads back
-	 * the DIAG0 push-pull + (TMC2241-only) stall/otpw/error routing bits just
-	 * written.
-	 */
-	uint32_t gconf_readback;
-
-	err = tmc5241_read(dev, TMC5XXX_GCONF, &gconf_readback);
-	if (err == 0) {
-		LOG_INF("GCONF readback: 0x%08x (expected 0x%08x)", gconf_readback, gconf_value);
-	}
-
 	/* TMC2241 (no ramp generator, so no stepper-ctrl child to write it):
 	 * the StallGuard2 stall output only asserts while TCOOLTHRS >= TSTEP,
 	 * and TCOOLTHRS resets to 0, which keeps it disabled.
 	 */
 	if (!config->has_ramp_gen && config->tcoolthrs != 0) {
-		uint32_t tcoolthrs_readback;
-
 		err = tmc5241_write(dev, TMC5241_TCOOLTHRS, config->tcoolthrs);
 		if (err != 0) {
 			return -EIO;
-		}
-		err = tmc5241_read(dev, TMC5241_TCOOLTHRS, &tcoolthrs_readback);
-		if (err == 0) {
-			LOG_INF("TCOOLTHRS readback: 0x%05x (expected 0x%05x)", tcoolthrs_readback,
-				config->tcoolthrs);
 		}
 	}
 
@@ -639,19 +610,11 @@ static int tmc5241_init(const struct device *dev)
 	 * value of 1 since this write replaces the whole register.
 	 */
 	if (!config->has_ramp_gen && config->sg4_thrs != 0) {
-		uint32_t sg4_thrs_readback;
-
 		err = tmc5241_write(dev, TMC5241_SG4_THRS,
 				    TMC5241_SG4_THRS_SG_ANGLE_OFFSET_MASK |
 					    FIELD_PREP(TMC5241_SG4_THRS_MASK, config->sg4_thrs));
 		if (err != 0) {
 			return -EIO;
-		}
-		err = tmc5241_read(dev, TMC5241_SG4_THRS, &sg4_thrs_readback);
-		if (err == 0) {
-			LOG_INF("SG4_THRS readback: %u (expected %u)",
-				(unsigned int)FIELD_GET(TMC5241_SG4_THRS_MASK, sg4_thrs_readback),
-				config->sg4_thrs);
 		}
 	}
 
