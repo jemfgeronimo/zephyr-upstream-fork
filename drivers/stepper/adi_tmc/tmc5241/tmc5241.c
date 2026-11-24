@@ -144,8 +144,19 @@ static int tmc5241_reg_write_uart(const struct device *dev, uint8_t reg_addr, ui
 static int tmc5241_reg_read_uart(const struct device *dev, uint8_t reg_addr, uint32_t *reg_val)
 {
 	const struct tmc5241_config *config = dev->config;
+	struct uart_config uart_cfg;
+	int err;
 
-	return tmc_uart_read_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
+	err = tmc_uart_read_register(config->bus.uart, config->uart_addr, reg_addr, reg_val);
+
+	/* The chip keeps driving the line for 4 bit times after its reply, so the next
+	 * request must not start before that or its first byte is corrupted.
+	 */
+	if (uart_config_get(config->bus.uart, &uart_cfg) == 0 && uart_cfg.baudrate != 0) {
+		k_busy_wait(DIV_ROUND_UP(8U * USEC_PER_SEC, uart_cfg.baudrate));
+	}
+
+	return err;
 }
 
 const struct tmc_bus_io tmc5241_uart_bus_io = {
