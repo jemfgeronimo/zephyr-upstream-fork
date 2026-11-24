@@ -32,7 +32,7 @@ examples:
 
         tmc2241: tmc2241 {
             compatible = "adi,tmc2241";
-            sw-sel-gpios = <&gpiob 0x01 GPIO_ACTIVE_HIGH>;
+            uart-en-gpios = <&gpiob 0x01 GPIO_ACTIVE_HIGH>;
 
             /* Common settings from base binding */
             clock-frequency = <DT_FREQ_M(12)>;
