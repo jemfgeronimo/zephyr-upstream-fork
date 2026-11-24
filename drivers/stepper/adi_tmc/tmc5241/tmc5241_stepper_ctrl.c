@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Analog Devices, Inc.
+ * SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  *

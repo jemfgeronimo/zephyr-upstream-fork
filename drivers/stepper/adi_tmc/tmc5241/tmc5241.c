@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Analog Devices, Inc.
+ * SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -67,7 +67,7 @@ struct tmc5241_config {
 	uint32_t clock_frequency;
 	bool has_ramp_gen; /* true: adi,tmc5241 (ramp gen present); false: adi,tmc2241 */
 #if TMC5241_BUS_UART
-	const struct gpio_dt_spec sw_sel_gpio;
+	const struct gpio_dt_spec uart_en_gpio;
 	uint8_t uart_addr;
 #endif
 	/* DIAG0 is a dedicated pin on both buses; when wired, events are
@@ -489,23 +489,23 @@ static int tmc5241_init(const struct device *dev)
 		return err;
 	}
 
-	k_msleep(TMC5241_WAKE_FROM_SLEEP_MAX_MS);
-
 #if TMC5241_BUS_UART
-	/* Initialize SW_SEL GPIO if using UART and GPIO is specified */
-	if (config->comm_type == TMC_COMM_UART && config->sw_sel_gpio.port) {
-		if (!gpio_is_ready_dt(&config->sw_sel_gpio)) {
-			LOG_ERR_DEVICE_NOT_READY(config->sw_sel_gpio.port);
+	/* Select the UART interface through UART_EN if the pin is under our control */
+	if (config->comm_type == TMC_COMM_UART && config->uart_en_gpio.port) {
+		if (!gpio_is_ready_dt(&config->uart_en_gpio)) {
+			LOG_ERR_DEVICE_NOT_READY(config->uart_en_gpio.port);
 			return -ENODEV;
 		}
 
-		err = gpio_pin_configure_dt(&config->sw_sel_gpio, GPIO_OUTPUT_ACTIVE);
+		err = gpio_pin_configure_dt(&config->uart_en_gpio, GPIO_OUTPUT_ACTIVE);
 		if (err < 0) {
-			LOG_ERR("Failed to configure SW_SEL GPIO");
+			LOG_ERR("Failed to configure UART_EN GPIO");
 			return err;
 		}
 	}
 #endif
+
+	k_msleep(TMC5241_WAKE_FROM_SLEEP_MAX_MS);
 
 	/* Configure DIAG0 GPIO interrupt pin, if wired (either bus) */
 	if (config->diag0_gpio.port != NULL) {
@@ -700,7 +700,7 @@ static int tmc5241_init(const struct device *dev)
 #define TMC5241_CONFIG_UART(node_id)                                                               \
 	.comm_type = TMC_COMM_UART, .bus.uart = DEVICE_DT_GET(DT_BUS(node_id)),                    \
 	.bus_io = &tmc5241_uart_bus_io, .uart_addr = DT_PROP_OR(node_id, uart_device_addr, 1U),    \
-	.sw_sel_gpio = GPIO_DT_SPEC_GET_OR(node_id, sw_sel_gpios, {0})
+	.uart_en_gpio = GPIO_DT_SPEC_GET_OR(node_id, uart_en_gpios, {0})
 
 #define DT_CHILD_BY_COMPATIBLE(parent_node_id, compat)                                             \
 	DT_FOREACH_CHILD_STATUS_OKAY_VARGS(parent_node_id, _DT_CHILD_BY_COMPAT_HELPER, compat)

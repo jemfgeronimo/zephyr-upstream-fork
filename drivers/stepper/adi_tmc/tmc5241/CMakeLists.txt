@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Analog Devices, Inc.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_library_sources_ifdef(CONFIG_STEPPER_ADI_TMC5241                tmc5241.c)

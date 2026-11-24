@@ -1,25 +1,25 @@
-# Copyright (c) 2026 Analog Devices, Inc.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
   ADI/Trinamic TMC5241 Stepper Motor Controller (UART single-wire mode)
 
   This binding supports the single-wire UART mode where:
-  - SWIOP is connected to the MCU's UART TX/RX pin
-  - SWION should be connected to half the IO level voltage (1.65V for 3.3V systems)
-  - SW_SEL must be HIGH (either via GPIO control or hardwired)
+  - DIAG1/SW is connected to the MCU's UART TX/RX pin (TX through a series
+    resistor, as on the TMC5241-EVKIT, so the host can read back its own bytes)
+  - UART_EN must be HIGH (either via GPIO control or hardwired)
 
 compatible: "adi,tmc5241"
 
 include: [uart-device.yaml, "adi,tmc5241-base.yaml"]
 
 properties:
-  sw-sel-gpios:
+  uart-en-gpios:
     type: phandle-array
     description: |
-      GPIO connected to the SW_SEL pin of TMC5241.
-      Must be set HIGH for UART mode operation.
-      If not provided, it's assumed SW_SEL is hardwired to VCC/HIGH.
+      GPIO connected to the UART_EN pin of TMC5241. Driven high at init to
+      select the single-wire UART interface (low selects SPI).
+      If not provided, it's assumed UART_EN is hardwired high.
 
   uart-device-addr:
     type: int
@@ -36,7 +36,7 @@ examples:
 
         tmc5241: tmc5241 {
             compatible = "adi,tmc5241";
-            sw-sel-gpios = <&gpiob 0x01 GPIO_ACTIVE_HIGH>;
+            uart-en-gpios = <&gpiob 0x01 GPIO_ACTIVE_HIGH>;
 
             /* Common settings from base binding */
             clock-frequency = <DT_FREQ_M(12)>;

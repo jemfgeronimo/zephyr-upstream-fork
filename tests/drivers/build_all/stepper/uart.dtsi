@@ -77,7 +77,7 @@ adi_tmcm3216 {
 adi_tmc5241_uart: adi-tmc5241 {
 	compatible = "adi,tmc5241";
 	label = "tmc5241_uart_1";
-	sw-sel-gpios = <&test_gpio 0x02 GPIO_ACTIVE_HIGH>;
+	uart-en-gpios = <&test_gpio 0x02 GPIO_ACTIVE_HIGH>;
 
 	en-pwm-mode;
 	shaft; /* ADI TMC Global configuration flags */
@@ -116,7 +116,7 @@ adi_tmc5241_uart: adi-tmc5241 {
 adi_tmc2241_uart: adi-tmc2241 {
 	compatible = "adi,tmc2241";
 	label = "tmc2241_uart_1";
-	sw-sel-gpios = <&test_gpio 0x03 GPIO_ACTIVE_HIGH>;
+	uart-en-gpios = <&test_gpio 0x03 GPIO_ACTIVE_HIGH>;
 
 	en-pwm-mode;
 	shaft;

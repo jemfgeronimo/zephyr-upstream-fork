@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Analog Devices, Inc.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
@@ -10,12 +10,12 @@ compatible: "adi,tmc2241"
 include: [uart-device.yaml, "adi,tmc2241-base.yaml"]
 
 properties:
-  sw-sel-gpios:
+  uart-en-gpios:
     type: phandle-array
     description: |
-      GPIO connected to the SW_SEL pin of TMC2241.
-      Must be set HIGH for UART mode operation.
-      If not provided, it's assumed SW_SEL is hardwired to VCC/HIGH.
+      GPIO connected to the UART_EN pin of TMC2241. Driven high at init to
+      select the single-wire UART interface (low selects SPI).
+      If not provided, it's assumed UART_EN is hardwired high.
 
   uart-device-addr:
     type: int
