@@ -2,11 +2,6 @@
  * SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
- *
- * "stepper-driver" child device - implements stepper.h.
- * Shared by TMC5241 and TMC2241 parents (both have identical CHOPCONF /
- * COOLCONF / DRVSTATUS layout for these operations). Compatible:
- * "adi,tmc5241-stepper-driver".
  */
 
 #include <zephyr/drivers/stepper/stepper.h>
@@ -133,31 +128,16 @@ static int tmc5241_stepper_driver_disable(const struct device *dev)
 	return 0;
 }
 
-/* MRES = 8 - log2(res); res must be a power of two in [1, 256].
- * Datasheet-confirmed: CHOPCONF.MRES 0=256 ... 8=fullstep (1), step width = 2^MRES.
- */
-static int tmc5241_micro_step_res_to_mres(uint16_t res, uint32_t *mres)
-{
-	if (res == 0 || res > 256 || !is_power_of_two(res)) {
-		return -EINVAL;
-	}
-
-	*mres = 8 - LOG2(res);
-	return 0;
-}
-
 static int tmc5241_stepper_driver_set_micro_step_res(const struct device *dev,
 						     enum stepper_micro_step_resolution res)
 {
 	const struct tmc5241_stepper_driver_config *config = dev->config;
 	const struct device *controller = config->controller;
-	uint32_t reg_value, mres;
+	uint32_t reg_value;
 	int err;
 
-	err = tmc5241_micro_step_res_to_mres((uint16_t)res, &mres);
-	if (err != 0) {
-		return err;
-	}
+	/* CHOPCONF.MRES: 0 = 256 microsteps ... 8 = full step, so MRES = 8 - log2(res) */
+	uint32_t mres = 8 - LOG2(res);
 
 	err = tmc5241_read(controller, TMC5241_CHOPCONF, &reg_value);
 	if (err != 0) {

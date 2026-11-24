@@ -2,9 +2,6 @@
  * SPDX-FileCopyrightText: Copyright (c) 2026 Analog Devices, Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
- *
- * "stepper-ctrl" child device - implements stepper_ctrl.h. TMC5241 only.
- * Compatible: "adi,tmc5241-stepper-ctrl".
  */
 
 #include <stdlib.h>
