@@ -10,7 +10,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/stepper/stepper.h>
 #include <zephyr/drivers/stepper/stepper_ctrl.h>
-#include <zephyr/drivers/stepper/stepper_trinamic.h>
+#include <zephyr/drivers/stepper/stepper_tmc5241.h>
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
